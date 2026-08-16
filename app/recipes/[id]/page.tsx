@@ -3,13 +3,8 @@ import { notFound } from "next/navigation";
 import { auth, signIn, signOut } from "@/auth";
 import { getExtrasAccessToken } from "@/lib/google";
 import { getRecipe } from "../data";
-import {
-  addIngredientsToShoppingList,
-  deleteMealPlanEntry,
-  deleteRecipe,
-  planMeal,
-  updateRecipeNotes,
-} from "../actions";
+import { addIngredientsToShoppingList, deleteRecipe, updateRecipeNotes } from "../actions";
+import { deleteMealPlanEntry, planMeal } from "@/app/meals/actions";
 import { TimeZoneField } from "../TimeZoneField";
 import { RecipeRating } from "../RecipeRating";
 import { RecipeNotesForm } from "../RecipeNotesForm";

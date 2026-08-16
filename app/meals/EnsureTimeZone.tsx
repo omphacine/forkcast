@@ -11,8 +11,8 @@ export function EnsureTimeZone() {
     const tz = Intl.DateTimeFormat().resolvedOptions().timeZone;
     const params = new URLSearchParams(searchParams.toString());
     params.set("tz", tz);
-    router.replace(`/recipes?${params.toString()}`);
+    router.replace(`/meals?${params.toString()}`);
   }, [router, searchParams]);
 
-  return <p className="text-sm text-foreground/60">Loading Recipes...</p>;
+  return <p className="text-sm text-foreground/60">Loading Meal Planning...</p>;
 }
