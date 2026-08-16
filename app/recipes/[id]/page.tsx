@@ -8,6 +8,7 @@ import {
   deleteRecipe,
   removeRecipePhoto,
   setRecipePhoto,
+  updateRecipeName,
   updateRecipeNotes,
 } from "../actions";
 import { deleteMealPlanEntry, planMeal } from "@/app/meals/actions";
@@ -15,6 +16,7 @@ import { TimeZoneField } from "../TimeZoneField";
 import { RecipeRating } from "../RecipeRating";
 import { RecipeNotesForm } from "../RecipeNotesForm";
 import { RecipePhotoForm } from "../RecipePhotoForm";
+import { RecipeNameForm } from "../RecipeNameForm";
 
 function formatDate(dateStr: string) {
   return new Date(`${dateStr}T00:00:00`).toLocaleDateString(undefined, {
@@ -82,8 +84,8 @@ export default async function RecipePage({
         </form>
       </header>
 
-      <div className="flex items-center justify-between gap-4">
-        <h1 className="font-heading text-4xl font-semibold">{recipe.name}</h1>
+      <div className="flex flex-col gap-2">
+        <RecipeNameForm action={updateRecipeName.bind(null, recipe.id)} defaultValue={recipe.name} />
         <form action={deleteRecipe.bind(null, recipe.id)}>
           <button
             type="submit"

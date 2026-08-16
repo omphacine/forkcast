@@ -138,6 +138,17 @@ export async function createRecipe(formData: FormData) {
   revalidatePath("/recipes");
 }
 
+export async function updateRecipeName(recipeId: number, formData: FormData) {
+  const userId = await getUserId();
+  const name = String(formData.get("name") ?? "").trim();
+  if (!name) throw new Error("Recipe name is required");
+  await sql`
+    UPDATE recipes SET name = ${name} WHERE id = ${recipeId} AND user_id = ${userId}
+  `;
+  revalidatePath("/recipes");
+  revalidatePath(`/recipes/${recipeId}`);
+}
+
 export async function updateRecipeMainIngredient(recipeId: number, formData: FormData) {
   const userId = await getUserId();
   const mainIngredient = String(formData.get("mainIngredient") ?? "").trim() || null;
