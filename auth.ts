@@ -55,16 +55,21 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
   ],
   callbacks: {
     async jwt({ token, account, profile }) {
+      // Runs on every fresh sign-in, regardless of which provider — the
+      // Google account (and its stable "sub") is the same either way, and
+      // NextAuth doesn't otherwise guarantee appUserId survives on the token
+      // across a second, different-provider sign-in while already signed in.
+      if (account && profile?.sub) {
+        const rows = await sql`
+          INSERT INTO users (google_sub, email)
+          VALUES (${profile.sub}, ${profile.email as string})
+          ON CONFLICT (google_sub) DO UPDATE SET email = excluded.email
+          RETURNING id
+        `;
+        token.appUserId = rows[0].id as number;
+      }
+
       if (account?.provider === "google") {
-        if (profile?.sub) {
-          const rows = await sql`
-            INSERT INTO users (google_sub, email)
-            VALUES (${profile.sub}, ${profile.email as string})
-            ON CONFLICT (google_sub) DO UPDATE SET email = excluded.email
-            RETURNING id
-          `;
-          token.appUserId = rows[0].id as number;
-        }
         return token;
       }
 
