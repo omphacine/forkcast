@@ -3,11 +3,18 @@ import { notFound } from "next/navigation";
 import { auth, signIn, signOut } from "@/auth";
 import { getExtrasAccessToken } from "@/lib/google";
 import { getRecipe } from "../data";
-import { addIngredientsToShoppingList, deleteRecipe, updateRecipeNotes } from "../actions";
+import {
+  addIngredientsToShoppingList,
+  deleteRecipe,
+  removeRecipePhoto,
+  setRecipePhoto,
+  updateRecipeNotes,
+} from "../actions";
 import { deleteMealPlanEntry, planMeal } from "@/app/meals/actions";
 import { TimeZoneField } from "../TimeZoneField";
 import { RecipeRating } from "../RecipeRating";
 import { RecipeNotesForm } from "../RecipeNotesForm";
+import { RecipePhotoForm } from "../RecipePhotoForm";
 
 function formatDate(dateStr: string) {
   return new Date(`${dateStr}T00:00:00`).toLocaleDateString(undefined, {
@@ -88,6 +95,12 @@ export default async function RecipePage({
       </div>
 
       <RecipeRating recipeId={recipe.id} initialRating={recipe.rating} />
+
+      <RecipePhotoForm
+        photoDataUrl={recipe.photoDataUrl}
+        onUpload={setRecipePhoto.bind(null, recipe.id)}
+        onRemove={removeRecipePhoto.bind(null, recipe.id)}
+      />
 
       {recipe.instructions && (
         <div>

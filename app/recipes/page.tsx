@@ -25,6 +25,14 @@ function groupBy(recipes: Recipe[], getKey: (recipe: Recipe) => string | null) {
 function RecipeRow({ recipe }: { recipe: Recipe }) {
   return (
     <li className="flex flex-wrap items-center gap-3 rounded-lg border border-foreground/10 px-4 py-3 hover:border-primary">
+      {recipe.photoDataUrl && (
+        // eslint-disable-next-line @next/next/no-img-element
+        <img
+          src={recipe.photoDataUrl}
+          alt=""
+          className="h-12 w-12 shrink-0 rounded-md object-cover"
+        />
+      )}
       <Link href={`/recipes/${recipe.id}`} className="min-w-[180px] flex-1">
         <p className="truncate text-lg font-medium">{recipe.name}</p>
         {recipe.rating && (

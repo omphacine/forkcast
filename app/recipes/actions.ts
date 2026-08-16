@@ -188,6 +188,31 @@ export async function updateRecipeRating(recipeId: number, rating: number | null
   revalidatePath(`/recipes/${recipeId}`);
 }
 
+// dataUrl is produced client-side (resized/compressed before upload) — capped
+// here as a defensive limit against a buggy or malicious client bypassing that.
+const MAX_PHOTO_DATA_URL_LENGTH = 3_000_000;
+
+export async function setRecipePhoto(recipeId: number, dataUrl: string) {
+  const userId = await getUserId();
+  if (!dataUrl.startsWith("data:image/") || dataUrl.length > MAX_PHOTO_DATA_URL_LENGTH) {
+    throw new Error("Invalid photo");
+  }
+  await sql`
+    UPDATE recipes SET photo_data_url = ${dataUrl} WHERE id = ${recipeId} AND user_id = ${userId}
+  `;
+  revalidatePath("/recipes");
+  revalidatePath(`/recipes/${recipeId}`);
+}
+
+export async function removeRecipePhoto(recipeId: number) {
+  const userId = await getUserId();
+  await sql`
+    UPDATE recipes SET photo_data_url = NULL WHERE id = ${recipeId} AND user_id = ${userId}
+  `;
+  revalidatePath("/recipes");
+  revalidatePath(`/recipes/${recipeId}`);
+}
+
 export async function deleteRecipe(recipeId: number) {
   const userId = await getUserId();
   const entries = await sql`

@@ -8,6 +8,7 @@ export type Recipe = {
   favorite: boolean;
   ingredientCount: number;
   rating: number | null;
+  photoDataUrl: string | null;
   createdAt: string;
 };
 
@@ -31,6 +32,7 @@ export type RecipeWithDetails = {
   instructions: string | null;
   notes: string | null;
   rating: number | null;
+  photoDataUrl: string | null;
   createdAt: string;
   ingredients: Ingredient[];
   plannedDates: PlannedDate[];
@@ -45,6 +47,7 @@ export async function getRecipes(userId: number): Promise<Recipe[]> {
       r.cooking_method AS "cookingMethod",
       r.favorite,
       r.rating,
+      r.photo_data_url AS "photoDataUrl",
       r.created_at::text AS "createdAt",
       COUNT(ri.id)::int AS "ingredientCount"
     FROM recipes r
@@ -62,7 +65,8 @@ export async function getRecipe(
 ): Promise<RecipeWithDetails | undefined> {
   const recipeRows = await sql`
     SELECT id, name, main_ingredient AS "mainIngredient", cooking_method AS "cookingMethod",
-           favorite, instructions, notes, rating, created_at::text AS "createdAt"
+           favorite, instructions, notes, rating, photo_data_url AS "photoDataUrl",
+           created_at::text AS "createdAt"
     FROM recipes
     WHERE id = ${id} AND user_id = ${userId}
   `;
@@ -76,6 +80,7 @@ export async function getRecipe(
         instructions: string | null;
         notes: string | null;
         rating: number | null;
+        photoDataUrl: string | null;
         createdAt: string;
       }
     | undefined;
