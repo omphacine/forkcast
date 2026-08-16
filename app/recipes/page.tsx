@@ -225,6 +225,18 @@ export default async function RecipesPage() {
             placeholder="Cooking method (optional)"
             className="rounded-md border border-foreground/10 bg-transparent px-3 py-2 text-lg"
           />
+          <div className="flex flex-wrap gap-3">
+            <input
+              name="sourceName"
+              placeholder="Source: cookbook, website, etc. (optional)"
+              className="min-w-[220px] flex-1 rounded-md border border-foreground/10 bg-transparent px-3 py-2 text-lg"
+            />
+            <input
+              name="sourcePage"
+              placeholder="Page (optional)"
+              className="w-28 rounded-md border border-foreground/10 bg-transparent px-3 py-2 text-lg"
+            />
+          </div>
           <label className="text-base text-foreground/60">
             Ingredients (one per line)
             <textarea

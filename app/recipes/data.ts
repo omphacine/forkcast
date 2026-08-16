@@ -33,6 +33,8 @@ export type RecipeWithDetails = {
   notes: string | null;
   rating: number | null;
   photoDataUrl: string | null;
+  sourceName: string | null;
+  sourcePage: string | null;
   createdAt: string;
   ingredients: Ingredient[];
   plannedDates: PlannedDate[];
@@ -66,6 +68,7 @@ export async function getRecipe(
   const recipeRows = await sql`
     SELECT id, name, main_ingredient AS "mainIngredient", cooking_method AS "cookingMethod",
            favorite, instructions, notes, rating, photo_data_url AS "photoDataUrl",
+           source_name AS "sourceName", source_page AS "sourcePage",
            created_at::text AS "createdAt"
     FROM recipes
     WHERE id = ${id} AND user_id = ${userId}
@@ -81,6 +84,8 @@ export async function getRecipe(
         notes: string | null;
         rating: number | null;
         photoDataUrl: string | null;
+        sourceName: string | null;
+        sourcePage: string | null;
         createdAt: string;
       }
     | undefined;

@@ -114,6 +114,8 @@ export async function createRecipe(formData: FormData) {
   const mainIngredient = String(formData.get("mainIngredient") ?? "").trim() || null;
   const cookingMethod = String(formData.get("cookingMethod") ?? "").trim() || null;
   const instructions = String(formData.get("instructions") ?? "").trim() || null;
+  const sourceName = String(formData.get("sourceName") ?? "").trim() || null;
+  const sourcePage = String(formData.get("sourcePage") ?? "").trim() || null;
   const ingredientsRaw = String(formData.get("ingredients") ?? "");
   if (!name) throw new Error("Recipe name is required");
 
@@ -123,8 +125,8 @@ export async function createRecipe(formData: FormData) {
     .filter(Boolean);
 
   const [{ id: recipeId }] = await sql`
-    INSERT INTO recipes (user_id, name, main_ingredient, cooking_method, instructions)
-    VALUES (${userId}, ${name}, ${mainIngredient}, ${cookingMethod}, ${instructions})
+    INSERT INTO recipes (user_id, name, main_ingredient, cooking_method, instructions, source_name, source_page)
+    VALUES (${userId}, ${name}, ${mainIngredient}, ${cookingMethod}, ${instructions}, ${sourceName}, ${sourcePage})
     RETURNING id
   `;
 
@@ -167,6 +169,17 @@ export async function updateRecipeCookingMethod(recipeId: number, formData: Form
     WHERE id = ${recipeId} AND user_id = ${userId}
   `;
   revalidatePath("/recipes");
+}
+
+export async function updateRecipeSource(recipeId: number, formData: FormData) {
+  const userId = await getUserId();
+  const sourceName = String(formData.get("sourceName") ?? "").trim() || null;
+  const sourcePage = String(formData.get("sourcePage") ?? "").trim() || null;
+  await sql`
+    UPDATE recipes SET source_name = ${sourceName}, source_page = ${sourcePage}
+    WHERE id = ${recipeId} AND user_id = ${userId}
+  `;
+  revalidatePath(`/recipes/${recipeId}`);
 }
 
 export async function toggleRecipeFavorite(recipeId: number) {

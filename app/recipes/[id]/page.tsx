@@ -10,6 +10,7 @@ import {
   setRecipePhoto,
   updateRecipeName,
   updateRecipeNotes,
+  updateRecipeSource,
 } from "../actions";
 import { deleteMealPlanEntry, planMeal } from "@/app/meals/actions";
 import { TimeZoneField } from "../TimeZoneField";
@@ -17,6 +18,7 @@ import { RecipeRating } from "../RecipeRating";
 import { RecipeNotesForm } from "../RecipeNotesForm";
 import { RecipePhotoForm } from "../RecipePhotoForm";
 import { RecipeNameForm } from "../RecipeNameForm";
+import { RecipeSourceForm } from "../RecipeSourceForm";
 
 function formatDate(dateStr: string) {
   return new Date(`${dateStr}T00:00:00`).toLocaleDateString(undefined, {
@@ -103,6 +105,17 @@ export default async function RecipePage({
         onUpload={setRecipePhoto.bind(null, recipe.id)}
         onRemove={removeRecipePhoto.bind(null, recipe.id)}
       />
+
+      <div>
+        <h2 className="font-heading text-2xl font-semibold">Source</h2>
+        <div className="mt-2">
+          <RecipeSourceForm
+            action={updateRecipeSource.bind(null, recipe.id)}
+            defaultName={recipe.sourceName}
+            defaultPage={recipe.sourcePage}
+          />
+        </div>
+      </div>
 
       {recipe.instructions && (
         <div>
