@@ -52,7 +52,7 @@ export default async function ShoppingPage() {
     );
   }
 
-  const items = await getShoppingItems(session.appUserId);
+  const items = await getShoppingItems();
   const groups = groupByStore(items);
 
   return (

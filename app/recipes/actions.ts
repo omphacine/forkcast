@@ -3,9 +3,10 @@
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import sql from "@/lib/db";
+import strideSql from "@/lib/strideDb";
 import claude from "@/lib/claude";
 import { FAMILY_CALENDAR_ID, eventsUrl, getExtrasAccessToken, googleFetch } from "@/lib/google";
-import { getUserId } from "@/lib/user";
+import { getUserId, isOwner } from "@/lib/user";
 
 const SCANNABLE_IMAGE_TYPES = new Set([
   "image/jpeg",
@@ -396,15 +397,22 @@ export async function addIngredientsToShoppingList(
   recipeName: string,
   formData: FormData,
 ) {
-  const userId = await getUserId();
   const ingredients = formData.getAll("ingredient").map(String);
   const source = `Recipe: ${recipeName}`;
+  const owner = await isOwner();
+  const userId = owner ? null : await getUserId();
 
   for (const ingredient of ingredients) {
-    await sql`
-      INSERT INTO shopping_items (user_id, name, source)
-      VALUES (${userId}, ${ingredient}, ${source})
-    `;
+    if (owner) {
+      await strideSql`
+        INSERT INTO shopping_items (name, source) VALUES (${ingredient}, ${source})
+      `;
+    } else {
+      await sql`
+        INSERT INTO shopping_items (user_id, name, source)
+        VALUES (${userId}, ${ingredient}, ${source})
+      `;
+    }
   }
 
   revalidatePath("/shopping");
