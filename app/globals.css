@@ -17,12 +17,19 @@
 }
 
 @media (prefers-color-scheme: dark) {
-  :root {
+  :root:not(.light) {
     --background: #2e1b33;
     --foreground: #fce4ec;
     --color-primary: #ff89a6;
     --color-secondary: #c98bef;
   }
+}
+
+:root.dark {
+  --background: #2e1b33;
+  --foreground: #fce4ec;
+  --color-primary: #ff89a6;
+  --color-secondary: #c98bef;
 }
 
 body {

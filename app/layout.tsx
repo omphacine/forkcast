@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import { Fredoka, Nunito_Sans } from "next/font/google";
 import "./globals.css";
+import { ThemeToggle } from "./ThemeToggle";
 
 const fredoka = Fredoka({
   variable: "--font-fredoka",
@@ -20,6 +21,17 @@ export const metadata: Metadata = {
   },
 };
 
+// Applied before paint so a returning visitor's saved theme choice never
+// flashes the wrong theme first.
+const themeInitScript = `(function() {
+  try {
+    var stored = localStorage.getItem('theme');
+    if (stored === 'dark' || stored === 'light') {
+      document.documentElement.classList.add(stored);
+    }
+  } catch (e) {}
+})();`;
+
 export default function RootLayout({
   children,
 }: Readonly<{
@@ -30,7 +42,13 @@ export default function RootLayout({
       lang="en"
       className={`${fredoka.variable} ${nunitoSans.variable} h-full antialiased`}
     >
-      <body className="min-h-full flex flex-col">{children}</body>
+      <head>
+        <script dangerouslySetInnerHTML={{ __html: themeInitScript }} />
+      </head>
+      <body className="min-h-full flex flex-col">
+        {children}
+        <ThemeToggle />
+      </body>
     </html>
   );
 }
