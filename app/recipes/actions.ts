@@ -19,6 +19,67 @@ export type ScanRecipeResult =
   | { ok: true; name: string; ingredients: string[]; instructions: string | null }
   | { ok: false; reason: string };
 
+const RECIPE_SCHEMA = {
+  type: "object",
+  properties: {
+    name: { type: "string" },
+    ingredients: { type: "array", items: { type: "string" } },
+    instructions: { anyOf: [{ type: "string" }, { type: "null" }] },
+  },
+  required: ["name", "ingredients", "instructions"],
+  additionalProperties: false,
+} as const;
+
+async function extractRecipeFromContent(
+  content: Array<
+    | { type: "text"; text: string }
+    | { type: "image"; source: { type: "base64"; media_type: ScannableImageType; data: string } }
+  >,
+  notFoundReason: string,
+): Promise<ScanRecipeResult> {
+  let response;
+  try {
+    response = await claude.messages.create({
+      model: "claude-opus-5",
+      max_tokens: 2048,
+      messages: [{ role: "user", content }],
+      output_config: { format: { type: "json_schema", schema: RECIPE_SCHEMA } },
+    });
+  } catch (err) {
+    return {
+      ok: false,
+      reason: err instanceof Error ? err.message : "Scanning failed. Please try again.",
+    };
+  }
+
+  if (response.stop_reason === "refusal") {
+    return { ok: false, reason: "Claude couldn't process that." };
+  }
+
+  const textBlock = response.content.find((block) => block.type === "text");
+  if (!textBlock || textBlock.type !== "text") {
+    return { ok: false, reason: "Couldn't read a recipe from that." };
+  }
+
+  let parsed: { name: string; ingredients: string[]; instructions: string | null };
+  try {
+    parsed = JSON.parse(textBlock.text);
+  } catch {
+    return { ok: false, reason: "Couldn't understand what was there." };
+  }
+
+  if (!parsed.name?.trim() || parsed.ingredients.length === 0) {
+    return { ok: false, reason: notFoundReason };
+  }
+
+  return {
+    ok: true,
+    name: parsed.name.trim(),
+    ingredients: parsed.ingredients.map((i) => i.trim()).filter(Boolean),
+    instructions: parsed.instructions?.trim() || null,
+  };
+}
+
 export async function scanRecipeImage(formData: FormData): Promise<ScanRecipeResult> {
   const file = formData.get("photo");
   if (!(file instanceof File) || file.size === 0) {
@@ -33,79 +94,144 @@ export async function scanRecipeImage(formData: FormData): Promise<ScanRecipeRes
 
   const base64 = Buffer.from(await file.arrayBuffer()).toString("base64");
 
-  let response;
-  try {
-    response = await claude.messages.create({
-      model: "claude-opus-5",
-      max_tokens: 2048,
-      messages: [
-        {
-          role: "user",
-          content: [
-            {
-              type: "image",
-              source: {
-                type: "base64",
-                media_type: file.type as ScannableImageType,
-                data: base64,
-              },
-            },
-            {
-              type: "text",
-              text: "This is a photo of a recipe — a recipe card, cookbook page, or handwritten note. Read it and extract the recipe name, the full list of ingredients (one per item, keeping quantities as written), and the cooking instructions if visible. If no name is written, invent a short descriptive one. If no instructions are visible, return null for instructions.",
-            },
-          ],
-        },
-      ],
-      output_config: {
-        format: {
-          type: "json_schema",
-          schema: {
-            type: "object",
-            properties: {
-              name: { type: "string" },
-              ingredients: { type: "array", items: { type: "string" } },
-              instructions: { anyOf: [{ type: "string" }, { type: "null" }] },
-            },
-            required: ["name", "ingredients", "instructions"],
-            additionalProperties: false,
-          },
-        },
+  return extractRecipeFromContent(
+    [
+      {
+        type: "image",
+        source: { type: "base64", media_type: file.type as ScannableImageType, data: base64 },
       },
-    });
-  } catch (err) {
-    return {
-      ok: false,
-      reason: err instanceof Error ? err.message : "Scanning failed. Please try again.",
-    };
+      {
+        type: "text",
+        text: "This is a photo of a recipe — a recipe card, cookbook page, or handwritten note. Read it and extract the recipe name, the full list of ingredients (one per item, keeping quantities as written), and the cooking instructions if visible. If no name is written, invent a short descriptive one. If no instructions are visible, return null for instructions.",
+      },
+    ],
+    "Couldn't find a recipe in that photo — try a clearer picture.",
+  );
+}
+
+type JsonLdRecipe = { name: string; ingredients: string[]; instructions: string | null };
+
+function parseJsonLdRecipeNode(node: unknown): JsonLdRecipe | null {
+  if (!node || typeof node !== "object") return null;
+  const obj = node as Record<string, unknown>;
+
+  const types = Array.isArray(obj["@type"]) ? obj["@type"] : [obj["@type"]];
+  if (types.includes("Recipe")) {
+    const name = String(obj.name ?? "").trim();
+    const ingredients = Array.isArray(obj.recipeIngredient)
+      ? obj.recipeIngredient.map((i) => String(i).trim()).filter(Boolean)
+      : [];
+    if (!name || ingredients.length === 0) return null;
+
+    let instructions: string | null = null;
+    const raw = obj.recipeInstructions;
+    if (Array.isArray(raw)) {
+      const steps = raw
+        .map((step) => {
+          if (typeof step === "string") return step.trim();
+          if (step && typeof step === "object" && "text" in step) {
+            return String((step as { text: unknown }).text).trim();
+          }
+          return "";
+        })
+        .filter(Boolean);
+      instructions = steps.length > 0 ? steps.map((s, i) => `${i + 1}. ${s}`).join("\n") : null;
+    } else if (typeof raw === "string") {
+      instructions = raw.trim() || null;
+    }
+
+    return { name, ingredients, instructions };
   }
 
-  if (response.stop_reason === "refusal") {
-    return { ok: false, reason: "Claude couldn't process that photo. Try a different one." };
+  if (Array.isArray(obj["@graph"])) {
+    for (const child of obj["@graph"]) {
+      const found = parseJsonLdRecipeNode(child);
+      if (found) return found;
+    }
   }
 
-  const textBlock = response.content.find((block) => block.type === "text");
-  if (!textBlock || textBlock.type !== "text") {
-    return { ok: false, reason: "Couldn't read a recipe from that photo." };
-  }
+  return null;
+}
 
-  let parsed: { name: string; ingredients: string[]; instructions: string | null };
+// Most recipe sites embed schema.org Recipe structured data for Google's rich
+// snippets — reading it directly is far more reliable than asking Claude to
+// pick a recipe out of a page full of nav/ads/comments/related-posts text.
+function extractJsonLdRecipe(html: string): JsonLdRecipe | null {
+  const scriptRegex = /<script[^>]*type=["']application\/ld\+json["'][^>]*>([\s\S]*?)<\/script>/gi;
+  let match: RegExpExecArray | null;
+  while ((match = scriptRegex.exec(html))) {
+    let data: unknown;
+    try {
+      data = JSON.parse(match[1].trim());
+    } catch {
+      continue;
+    }
+    for (const node of Array.isArray(data) ? data : [data]) {
+      const found = parseJsonLdRecipeNode(node);
+      if (found) return found;
+    }
+  }
+  return null;
+}
+
+function stripHtml(html: string): string {
+  return html
+    .replace(/<style[\s\S]*?<\/style>/gi, "")
+    .replace(/<script[\s\S]*?<\/script>/gi, "")
+    .replace(/<!--[\s\S]*?-->/g, "")
+    .replace(/<[^>]+>/g, " ")
+    .replace(/&nbsp;/g, " ")
+    .replace(/&amp;/g, "&")
+    .replace(/&zwnj;/g, "")
+    .replace(/[ \t]+/g, " ")
+    .replace(/\n\s*\n+/g, "\n")
+    .trim();
+}
+
+export async function scanRecipeUrl(url: string): Promise<ScanRecipeResult> {
+  let parsed: URL;
   try {
-    parsed = JSON.parse(textBlock.text);
+    parsed = new URL(url);
   } catch {
-    return { ok: false, reason: "Couldn't understand what was in that photo." };
+    return { ok: false, reason: "That doesn't look like a valid URL." };
+  }
+  if (parsed.protocol !== "http:" && parsed.protocol !== "https:") {
+    return { ok: false, reason: "Only http:// and https:// URLs are supported." };
   }
 
-  if (!parsed.name?.trim() || parsed.ingredients.length === 0) {
-    return { ok: false, reason: "Couldn't find a recipe in that photo — try a clearer picture." };
+  let html: string;
+  try {
+    const res = await fetch(parsed.toString(), {
+      headers: { "User-Agent": "Mozilla/5.0 (compatible; ForkCastBot/1.0)" },
+      signal: AbortSignal.timeout(15000),
+    });
+    if (!res.ok) {
+      return { ok: false, reason: `Couldn't load that page (HTTP ${res.status}).` };
+    }
+    html = await res.text();
+  } catch {
+    return { ok: false, reason: "Couldn't reach that URL." };
   }
 
-  return {
-    ok: true,
-    name: parsed.name.trim(),
-    ingredients: parsed.ingredients.map((i) => i.trim()).filter(Boolean),
-    instructions: parsed.instructions?.trim() || null,
-  };
+  const structured = extractJsonLdRecipe(html);
+  if (structured) {
+    return { ok: true, ...structured };
+  }
+
+  const bodyText = stripHtml(html).slice(0, 20000);
+  if (!bodyText.trim()) {
+    return { ok: false, reason: "Couldn't read that page." };
+  }
+
+  return extractRecipeFromContent(
+    [
+      {
+        type: "text",
+        text: `This is the text content of a recipe web page. Extract the recipe name, the full list of ingredients (one per item, keeping quantities as written), and the cooking instructions if present — ignore navigation, ads, comments, and related-recipe links. If no name is evident, invent a short descriptive one. If no instructions are present, return null for instructions.\n\nPage content:\n${bodyText}`,
+      },
+    ],
+    "Couldn't find a recipe on that page.",
+  );
 }
 
 export async function createRecipe(formData: FormData) {
