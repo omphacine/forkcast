@@ -1,3 +1,4 @@
+import Image from "next/image";
 import Link from "next/link";
 import { auth, signIn, signOut } from "@/auth";
 
@@ -9,7 +10,17 @@ export default async function Home() {
   return (
     <div className="flex flex-1 flex-col items-center bg-background px-6 py-16">
       <div className="w-full max-w-2xl">
-        <h1 className="font-heading text-4xl font-semibold">ForkCast</h1>
+        <div className="flex items-center gap-3">
+          <Image
+            src="/forkcast-mark.png"
+            alt=""
+            width={48}
+            height={48}
+            className="rounded-[10px]"
+            priority
+          />
+          <h1 className="font-heading text-4xl font-semibold">ForkCast</h1>
+        </div>
         <p className="mt-2 text-lg text-foreground/60">
           {session?.user?.email ? `Signed in as ${session.user.email}` : "Not signed in"}
         </p>
