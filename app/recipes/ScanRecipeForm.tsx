@@ -10,6 +10,7 @@ export function ScanRecipeForm() {
   const [isSaving, startSave] = useTransition();
   const [error, setError] = useState<string | null>(null);
   const [scanned, setScanned] = useState<Scanned | null>(null);
+  const [scannedFromUrl, setScannedFromUrl] = useState<string | null>(null);
   const [url, setUrl] = useState("");
   const fileInputRef = useRef<HTMLInputElement>(null);
 
@@ -23,6 +24,7 @@ export function ScanRecipeForm() {
       const result = await scanRecipeImage(formData);
       if (result.ok) {
         setScanned(result);
+        setScannedFromUrl(null);
       } else {
         setError(result.reason);
       }
@@ -32,12 +34,14 @@ export function ScanRecipeForm() {
 
   function handleUrlSubmit(e: FormEvent<HTMLFormElement>) {
     e.preventDefault();
-    if (!url.trim()) return;
+    const trimmedUrl = url.trim();
+    if (!trimmedUrl) return;
     setError(null);
     startScan(async () => {
-      const result = await scanRecipeUrl(url.trim());
+      const result = await scanRecipeUrl(trimmedUrl);
       if (result.ok) {
         setScanned(result);
+        setScannedFromUrl(trimmedUrl);
         setUrl("");
       } else {
         setError(result.reason);
@@ -67,6 +71,19 @@ export function ScanRecipeForm() {
             required
             className="rounded-md border border-foreground/10 bg-transparent px-3 py-2 text-lg"
           />
+          <div className="flex flex-wrap gap-3">
+            <input
+              name="sourceName"
+              defaultValue={scannedFromUrl ?? ""}
+              placeholder="Source: cookbook, website, etc. (optional)"
+              className="min-w-[220px] flex-1 rounded-md border border-foreground/10 bg-transparent px-3 py-2 text-lg"
+            />
+            <input
+              name="sourcePage"
+              placeholder="Page (optional)"
+              className="w-28 rounded-md border border-foreground/10 bg-transparent px-3 py-2 text-lg"
+            />
+          </div>
           <label className="text-base text-foreground/60">
             Ingredients (one per line)
             <textarea
