@@ -63,7 +63,6 @@ export function RecipePhotoForm({
             ref={inputRef}
             type="file"
             accept="image/*"
-            capture="environment"
             onChange={handleChange}
             disabled={isPending}
             className="hidden"
