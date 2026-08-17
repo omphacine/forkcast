@@ -67,24 +67,24 @@ export default async function Home() {
 
         <div className="mt-8 grid gap-4 sm:grid-cols-2">
           <ModuleCard
+            href="/meals"
+            title="Meal Plan"
+            description="Plan meals for the week and generate a shopping list from any recipe."
+          />
+          <ModuleCard
             href="/recipes"
             title="Recipes"
             description="Your recipe library — scan, rate, and organize by ingredient or cooking method."
           />
           <ModuleCard
-            href="/meals"
-            title="Meal Planning"
-            description="Plan meals for the week and generate a shopping list from any recipe."
+            href="/shopping"
+            title="Shopping List"
+            description="Grouped by store; ingredients from recipes show up here automatically."
           />
           <ModuleCard
             href="/inventory"
             title="Food Inventory"
             description="Track what's on hand and where, by category — scan a receipt to add items fast."
-          />
-          <ModuleCard
-            href="/shopping"
-            title="Shopping List"
-            description="Grouped by store; ingredients from recipes show up here automatically."
           />
         </div>
       </div>

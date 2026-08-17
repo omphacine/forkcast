@@ -14,5 +14,5 @@ export function EnsureTimeZone() {
     router.replace(`/meals?${params.toString()}`);
   }, [router, searchParams]);
 
-  return <p className="text-sm text-foreground/60">Loading Meal Planning...</p>;
+  return <p className="text-sm text-foreground/60">Loading Meal Plan...</p>;
 }

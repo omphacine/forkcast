@@ -127,7 +127,7 @@ export default async function RecipesPage() {
           href="/meals"
           className="shrink-0 rounded-full border border-foreground/10 px-4 py-2 text-base hover:bg-foreground/5"
         >
-          Meal Planning &rarr;
+          Meal Plan &rarr;
         </Link>
       </div>
 

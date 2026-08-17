@@ -103,7 +103,7 @@ export default async function MealsPage({
 
       <div>
         <div className="flex items-center justify-between gap-4">
-          <h1 className="font-heading text-4xl font-semibold">Meal Planning</h1>
+          <h1 className="font-heading text-4xl font-semibold">Meal Plan</h1>
           <Link
             href="/recipes"
             className="shrink-0 rounded-full border border-foreground/10 px-4 py-2 text-base hover:bg-foreground/5"
@@ -147,7 +147,9 @@ export default async function MealsPage({
 
                 <div className="min-w-0 flex-1 self-center">
                   {day.meals.length === 0 ? (
-                    <p className="text-lg text-foreground/60">Nothing planned</p>
+                    <Link href="/recipes" className="text-lg text-foreground/60 underline">
+                      Nothing planned
+                    </Link>
                   ) : (
                     <ul className="flex flex-col gap-2">
                       {day.meals.map((meal) => (
