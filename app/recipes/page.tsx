@@ -2,12 +2,10 @@ import Link from "next/link";
 import { auth, signIn, signOut } from "@/auth";
 import { getRecipes, type Recipe } from "./data";
 import {
-  createRecipe,
   toggleRecipeFavorite,
   updateRecipeCookingMethod,
   updateRecipeMainIngredient,
 } from "./actions";
-import { ScanRecipeForm } from "./ScanRecipeForm";
 import { RecipeCategoryForm } from "./RecipeCategoryForm";
 
 const UNCATEGORIZED = "Uncategorized";
@@ -123,12 +121,20 @@ export default async function RecipesPage() {
 
       <div className="flex items-center justify-between gap-4">
         <h1 className="font-heading text-4xl font-semibold">Recipes</h1>
-        <Link
-          href="/meals"
-          className="shrink-0 rounded-full border border-foreground/10 px-4 py-2 text-base hover:bg-foreground/5"
-        >
-          Meal Plan &rarr;
-        </Link>
+        <div className="flex shrink-0 items-center gap-3">
+          <Link
+            href="/recipes/add"
+            className="rounded-full bg-primary px-4 py-2 text-base font-medium text-white hover:opacity-90"
+          >
+            Add a Recipe
+          </Link>
+          <Link
+            href="/meals"
+            className="rounded-full border border-foreground/10 px-4 py-2 text-base hover:bg-foreground/5"
+          >
+            Meal Plan &rarr;
+          </Link>
+        </div>
       </div>
 
       {favorites.length > 0 && (
@@ -199,69 +205,6 @@ export default async function RecipesPage() {
         )}
       </div>
 
-      <div>
-        <h2 className="font-heading text-2xl font-semibold">Scan a recipe</h2>
-        <div className="mt-4">
-          <ScanRecipeForm />
-        </div>
-      </div>
-
-      <div>
-        <h2 className="font-heading text-2xl font-semibold">Add recipe</h2>
-        <form action={createRecipe} className="mt-4 flex flex-col gap-3">
-          <input
-            name="name"
-            placeholder="Recipe name"
-            required
-            className="rounded-md border border-foreground/10 bg-transparent px-3 py-2 text-lg"
-          />
-          <input
-            name="mainIngredient"
-            placeholder="Main ingredient (optional)"
-            className="rounded-md border border-foreground/10 bg-transparent px-3 py-2 text-lg"
-          />
-          <input
-            name="cookingMethod"
-            placeholder="Cooking method (optional)"
-            className="rounded-md border border-foreground/10 bg-transparent px-3 py-2 text-lg"
-          />
-          <div className="flex flex-wrap gap-3">
-            <input
-              name="sourceName"
-              placeholder="Source: cookbook, website, etc. (optional)"
-              className="min-w-[220px] flex-1 rounded-md border border-foreground/10 bg-transparent px-3 py-2 text-lg"
-            />
-            <input
-              name="sourcePage"
-              placeholder="Page (optional)"
-              className="w-28 rounded-md border border-foreground/10 bg-transparent px-3 py-2 text-lg"
-            />
-          </div>
-          <label className="text-base text-foreground/60">
-            Ingredients (one per line)
-            <textarea
-              name="ingredients"
-              rows={5}
-              placeholder={"2 cups flour\n1 tsp salt\n..."}
-              className="mt-1 block w-full rounded-md border border-foreground/10 bg-transparent px-3 py-2 text-lg"
-            />
-          </label>
-          <label className="text-base text-foreground/60">
-            Instructions (optional)
-            <textarea
-              name="instructions"
-              rows={4}
-              className="mt-1 block w-full rounded-md border border-foreground/10 bg-transparent px-3 py-2 text-lg"
-            />
-          </label>
-          <button
-            type="submit"
-            className="self-start rounded-full bg-primary px-5 py-2 text-base font-medium text-white hover:opacity-90"
-          >
-            Create
-          </button>
-        </form>
-      </div>
     </div>
   );
 }

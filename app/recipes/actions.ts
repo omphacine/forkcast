@@ -265,6 +265,7 @@ export async function createRecipe(formData: FormData) {
   }
 
   revalidatePath("/recipes");
+  redirect("/recipes");
 }
 
 export async function updateRecipeName(recipeId: number, formData: FormData) {
