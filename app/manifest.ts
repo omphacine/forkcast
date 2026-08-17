@@ -7,16 +7,16 @@ export default function manifest(): MetadataRoute.Manifest {
     description: "ForkCast — recipes, meal planning, food inventory, and shopping in one place.",
     start_url: "/",
     display: "standalone",
-    background_color: "#f7f1e0",
-    theme_color: "#14264a",
+    background_color: "#f5efd9",
+    theme_color: "#1a4638",
     icons: [
       {
-        src: "/icon",
+        src: "/icon.png",
         sizes: "32x32",
         type: "image/png",
       },
       {
-        src: "/apple-icon",
+        src: "/apple-icon.png",
         sizes: "180x180",
         type: "image/png",
       },
