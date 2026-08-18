@@ -1,7 +1,7 @@
 import Link from "next/link";
 import { auth, signIn, signOut } from "@/auth";
 import { getZonedParts, getExtrasAccessToken } from "@/lib/google";
-import { getInventoryItems, type InventoryItem } from "./data";
+import { getInventoryItems, getLocations, type InventoryItem } from "./data";
 import {
   createInventoryItem,
   deleteInventoryItem,
@@ -13,6 +13,8 @@ import {
 } from "./actions";
 import { InventoryItemNameForm } from "./InventoryItemNameForm";
 import { InventoryFieldForm } from "./InventoryFieldForm";
+import { InventoryLocationForm } from "./InventoryLocationForm";
+import { LocationSelect } from "./LocationSelect";
 import { InventoryExpirationForm } from "./InventoryExpirationForm";
 import { ScanReceiptForm } from "./ScanReceiptForm";
 import { EnsureTimeZone } from "./EnsureTimeZone";
@@ -95,7 +97,10 @@ export default async function InventoryPage({
   }
 
   const today = getZonedParts(new Date(), params.tz).dateStr;
-  const items = await getInventoryItems(session.appUserId);
+  const [items, locations] = await Promise.all([
+    getInventoryItems(session.appUserId),
+    getLocations(session.appUserId),
+  ]);
   const groups = groupByCategory(items);
   const hasGmailImport = Boolean(await getExtrasAccessToken());
 
@@ -124,7 +129,7 @@ export default async function InventoryPage({
         </p>
 
         <div className="mt-4">
-          <ScanReceiptForm hasGmailImport={hasGmailImport} />
+          <ScanReceiptForm hasGmailImport={hasGmailImport} locations={locations} />
         </div>
 
         <div className="mt-4 flex flex-col gap-3">
@@ -165,11 +170,11 @@ export default async function InventoryPage({
                         fieldName="quantity"
                         placeholder="Quantity"
                       />
-                      <InventoryFieldForm
+                      <InventoryLocationForm
+                        key={item.location ?? ""}
                         action={updateInventoryItemLocation.bind(null, item.id)}
                         defaultValue={item.location}
-                        fieldName="location"
-                        placeholder="Location"
+                        locations={locations}
                       />
                       <InventoryExpirationForm
                         action={updateInventoryItemExpiration.bind(null, item.id)}
@@ -214,9 +219,9 @@ export default async function InventoryPage({
             placeholder="Quantity (optional)"
             className="rounded-md border border-foreground/10 bg-transparent px-3 py-2 text-lg"
           />
-          <input
-            name="location"
-            placeholder="Location (optional)"
+          <LocationSelect
+            locations={locations}
+            defaultValue={null}
             className="rounded-md border border-foreground/10 bg-transparent px-3 py-2 text-lg"
           />
           <label className="flex flex-col text-sm text-foreground/60">

@@ -29,3 +29,12 @@ export async function getCategories(userId: number): Promise<string[]> {
   `;
   return (rows as { category: string }[]).map((r) => r.category);
 }
+
+export async function getLocations(userId: number): Promise<string[]> {
+  const rows = await sql`
+    SELECT DISTINCT location FROM inventory_items
+    WHERE location IS NOT NULL AND user_id = ${userId}
+    ORDER BY location
+  `;
+  return (rows as { location: string }[]).map((r) => r.location);
+}

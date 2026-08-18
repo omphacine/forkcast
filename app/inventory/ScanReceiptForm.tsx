@@ -9,8 +9,15 @@ import {
   type ReceiptEmailSummary,
   type ScannedInventoryItem,
 } from "./actions";
+import { LocationSelect } from "./LocationSelect";
 
-export function ScanReceiptForm({ hasGmailImport }: { hasGmailImport: boolean }) {
+export function ScanReceiptForm({
+  hasGmailImport,
+  locations,
+}: {
+  hasGmailImport: boolean;
+  locations: string[];
+}) {
   const [isFinding, startFind] = useTransition();
   const [isScanning, startScan] = useTransition();
   const [isSaving, startSave] = useTransition();
@@ -126,9 +133,10 @@ export function ScanReceiptForm({ hasGmailImport }: { hasGmailImport: boolean })
                   placeholder="Category"
                   className="w-28 rounded-md border border-foreground/10 bg-transparent px-2 py-1 text-base"
                 />
-                <input
+                <LocationSelect
                   name={`location-${i}`}
-                  placeholder="Location"
+                  locations={locations}
+                  defaultValue={null}
                   className="w-32 rounded-md border border-foreground/10 bg-transparent px-2 py-1 text-base"
                 />
               </li>
