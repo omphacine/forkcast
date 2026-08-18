@@ -18,23 +18,20 @@ export async function planMeal(
     throw new Error("Please choose a date");
   }
 
-  // Side dishes don't get their own calendar event. Neither does a main dish
-  // unless the owner has connected the bonus calendar/Gmail client — public
-  // users' meal plans stay in-app only.
+  // No calendar event at all unless the owner has connected the bonus
+  // calendar/Gmail client — public users' meal plans stay in-app only.
   let calendarEventId: string | null = null;
-  if (!isSide) {
-    const accessToken = await getExtrasAccessToken();
-    if (accessToken) {
-      const created = await googleFetch(eventsUrl(FAMILY_CALENDAR_ID), accessToken, {
-        method: "POST",
-        body: JSON.stringify({
-          summary: `Meal: ${recipeName}`,
-          start: { dateTime: `${date}T17:00:00`, timeZone },
-          end: { dateTime: `${date}T18:00:00`, timeZone },
-        }),
-      });
-      calendarEventId = created.id;
-    }
+  const accessToken = await getExtrasAccessToken();
+  if (accessToken) {
+    const created = await googleFetch(eventsUrl(FAMILY_CALENDAR_ID), accessToken, {
+      method: "POST",
+      body: JSON.stringify({
+        summary: `${isSide ? "Side" : "Meal"}: ${recipeName}`,
+        start: { dateTime: `${date}T17:00:00`, timeZone },
+        end: { dateTime: `${date}T18:00:00`, timeZone },
+      }),
+    });
+    calendarEventId = created.id;
   }
 
   await sql`
@@ -58,19 +55,17 @@ export async function addQuickMeal(formData: FormData) {
   }
 
   let calendarEventId: string | null = null;
-  if (!isSide) {
-    const accessToken = await getExtrasAccessToken();
-    if (accessToken) {
-      const created = await googleFetch(eventsUrl(FAMILY_CALENDAR_ID), accessToken, {
-        method: "POST",
-        body: JSON.stringify({
-          summary: `Meal: ${name}`,
-          start: { dateTime: `${date}T17:00:00`, timeZone },
-          end: { dateTime: `${date}T18:00:00`, timeZone },
-        }),
-      });
-      calendarEventId = created.id;
-    }
+  const accessToken = await getExtrasAccessToken();
+  if (accessToken) {
+    const created = await googleFetch(eventsUrl(FAMILY_CALENDAR_ID), accessToken, {
+      method: "POST",
+      body: JSON.stringify({
+        summary: `${isSide ? "Side" : "Meal"}: ${name}`,
+        start: { dateTime: `${date}T17:00:00`, timeZone },
+        end: { dateTime: `${date}T18:00:00`, timeZone },
+      }),
+    });
+    calendarEventId = created.id;
   }
 
   await sql`
@@ -93,32 +88,28 @@ export async function toggleMealSide(entryId: number, formData: FormData) {
 
   const becomingSide = !entry.isSide;
   const accessToken = await getExtrasAccessToken();
+  let newCalendarEventId = entry.calendarEventId as string | null;
 
-  if (becomingSide) {
-    // Losing its calendar event — sides don't get one.
-    if (entry.calendarEventId && accessToken) {
+  if (accessToken) {
+    let recipeName: string | null = null;
+    if (entry.recipeId) {
+      const [recipe] = await sql`SELECT name FROM recipes WHERE id = ${entry.recipeId}`;
+      recipeName = recipe?.name ?? null;
+    }
+    const summary = `${becomingSide ? "Side" : "Meal"}: ${recipeName ?? entry.name}`;
+
+    if (entry.calendarEventId) {
+      // Already has an event — just relabel it rather than delete/recreate.
       try {
         await googleFetch(`${eventsUrl(FAMILY_CALENDAR_ID)}/${entry.calendarEventId}`, accessToken, {
-          method: "DELETE",
+          method: "PATCH",
+          body: JSON.stringify({ summary }),
         });
       } catch {
         // Best-effort: the event may already be gone.
       }
-    }
-    await sql`
-      UPDATE meal_plan_entries SET is_side = true, calendar_event_id = NULL
-      WHERE id = ${entryId} AND user_id = ${userId}
-    `;
-  } else {
-    // Becoming the main dish — gains a calendar event, only for the owner.
-    let newCalendarEventId: string | null = null;
-    if (accessToken) {
-      let recipeName: string | null = null;
-      if (entry.recipeId) {
-        const [recipe] = await sql`SELECT name FROM recipes WHERE id = ${entry.recipeId}`;
-        recipeName = recipe?.name ?? null;
-      }
-      const summary = `Meal: ${recipeName ?? entry.name}`;
+    } else {
+      // Entry predates calendar events for sides — create one now.
       const created = await googleFetch(eventsUrl(FAMILY_CALENDAR_ID), accessToken, {
         method: "POST",
         body: JSON.stringify({
@@ -129,11 +120,12 @@ export async function toggleMealSide(entryId: number, formData: FormData) {
       });
       newCalendarEventId = created.id;
     }
-    await sql`
-      UPDATE meal_plan_entries SET is_side = false, calendar_event_id = ${newCalendarEventId}
-      WHERE id = ${entryId} AND user_id = ${userId}
-    `;
   }
+
+  await sql`
+    UPDATE meal_plan_entries SET is_side = ${becomingSide}, calendar_event_id = ${newCalendarEventId}
+    WHERE id = ${entryId} AND user_id = ${userId}
+  `;
 
   revalidatePath("/meals");
 }
