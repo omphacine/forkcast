@@ -11,6 +11,13 @@ import {
 } from "./actions";
 import { LocationSelect } from "./LocationSelect";
 
+// Grows a name textarea to fit its content so a long scanned item name is
+// fully visible instead of scrolling inside a fixed-height box.
+function autoGrow(el: HTMLTextAreaElement) {
+  el.style.height = "auto";
+  el.style.height = `${el.scrollHeight}px`;
+}
+
 export function ScanReceiptForm({
   hasGmailImport,
   locations,
@@ -108,37 +115,46 @@ export function ScanReceiptForm({
             {items.map((item, i) => (
               <li
                 key={i}
-                className="flex flex-wrap items-center gap-2 rounded-md border border-foreground/10 p-2"
+                className="flex flex-col gap-2 rounded-md border border-foreground/10 p-2"
               >
-                <input
-                  type="checkbox"
-                  name={`include-${i}`}
-                  defaultChecked
-                  className="h-5 w-5 shrink-0"
-                />
-                <input
-                  name={`name-${i}`}
-                  defaultValue={item.name}
-                  className="min-w-[160px] flex-1 rounded-md border border-foreground/10 bg-transparent px-2 py-1 text-base"
-                />
-                <input
-                  name={`quantity-${i}`}
-                  defaultValue={item.quantity ?? ""}
-                  placeholder="Quantity"
-                  className="w-24 rounded-md border border-foreground/10 bg-transparent px-2 py-1 text-base"
-                />
-                <input
-                  name={`category-${i}`}
-                  defaultValue={item.category ?? ""}
-                  placeholder="Category"
-                  className="w-28 rounded-md border border-foreground/10 bg-transparent px-2 py-1 text-base"
-                />
-                <LocationSelect
-                  name={`location-${i}`}
-                  locations={locations}
-                  defaultValue={null}
-                  className="w-32 rounded-md border border-foreground/10 bg-transparent px-2 py-1 text-base"
-                />
+                <div className="flex items-start gap-2">
+                  <input
+                    type="checkbox"
+                    name={`include-${i}`}
+                    defaultChecked
+                    className="mt-1.5 h-5 w-5 shrink-0"
+                  />
+                  <textarea
+                    name={`name-${i}`}
+                    defaultValue={item.name}
+                    ref={(el) => {
+                      if (el) autoGrow(el);
+                    }}
+                    onInput={(e) => autoGrow(e.currentTarget)}
+                    rows={1}
+                    className="min-w-0 flex-1 resize-none overflow-hidden rounded-md border border-foreground/10 bg-transparent px-2 py-1 text-base"
+                  />
+                </div>
+                <div className="flex flex-wrap items-center gap-2 pl-7">
+                  <input
+                    name={`quantity-${i}`}
+                    defaultValue={item.quantity ?? ""}
+                    placeholder="Quantity"
+                    className="w-24 rounded-md border border-foreground/10 bg-transparent px-2 py-1 text-base"
+                  />
+                  <input
+                    name={`category-${i}`}
+                    defaultValue={item.category ?? ""}
+                    placeholder="Category"
+                    className="w-28 rounded-md border border-foreground/10 bg-transparent px-2 py-1 text-base"
+                  />
+                  <LocationSelect
+                    name={`location-${i}`}
+                    locations={locations}
+                    defaultValue={null}
+                    className="w-32 rounded-md border border-foreground/10 bg-transparent px-2 py-1 text-base"
+                  />
+                </div>
               </li>
             ))}
           </ul>
