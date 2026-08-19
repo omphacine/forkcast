@@ -1,8 +1,8 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { auth, signIn, signOut } from "@/auth";
+import { auth, signOut } from "@/auth";
 import { getExtrasAccessToken } from "@/lib/google";
-import { getRecipe } from "../data";
+import { getPublicRecipe, getRecipe } from "../data";
 import {
   addIngredientsToShoppingList,
   deleteRecipe,
@@ -40,46 +40,131 @@ function sourceUrl(value: string | null): URL | null {
   }
 }
 
+function SourceLink({ sourceName }: { sourceName: string | null }) {
+  const link = sourceUrl(sourceName);
+  if (!link) return null;
+  return (
+    <a
+      href={link.toString()}
+      target="_blank"
+      rel="noopener noreferrer"
+      className="mt-1 inline-block text-base text-secondary underline"
+    >
+      {link.hostname} &#8599;
+    </a>
+  );
+}
+
 export default async function RecipePage({
   params,
 }: {
   params: Promise<{ id: string }>;
 }) {
-  const session = await auth();
+  const { id } = await params;
+  const recipeId = Number(id);
+  if (!Number.isInteger(recipeId)) notFound();
 
-  if (!session?.appUserId) {
+  const session = await auth();
+  const recipe = session?.appUserId ? await getRecipe(recipeId, session.appUserId) : undefined;
+
+  if (!recipe) {
+    // Not signed in, or signed in as someone other than the recipe's owner
+    // (e.g. a family member opening the link from a shared calendar event) —
+    // fall back to a read-only view instead of a hard 404, unless the recipe
+    // genuinely doesn't exist.
+    const publicRecipe = await getPublicRecipe(recipeId);
+    if (!publicRecipe) notFound();
+    const publicSourceLink = sourceUrl(publicRecipe.sourceName);
+
     return (
-      <div className="flex flex-1 flex-col items-center justify-center gap-4 bg-background p-8 text-center">
-        <p className="text-foreground/60">Sign in with Google to see this recipe.</p>
-        <form
-          action={async () => {
-            "use server";
-            await signIn("google", { redirectTo: "/recipes" });
-          }}
-        >
-          <button
-            type="submit"
-            className="rounded-full bg-primary px-5 py-3 text-sm font-medium text-white hover:opacity-90"
-          >
-            Sign in with Google
-          </button>
-        </form>
-        <Link href="/" className="text-sm text-foreground/60 underline">
-          Back home
-        </Link>
+      <div className="mx-auto flex w-full max-w-2xl flex-1 flex-col gap-8 px-6 py-10">
+        <header>
+          <Link href="/" className="text-base text-foreground/60 underline">
+            &larr; ForkCast
+          </Link>
+        </header>
+
+        <div>
+          <h1 className="font-heading text-4xl font-semibold">{publicRecipe.name}</h1>
+          {publicRecipe.rating && (
+            <p
+              className="mt-2 text-2xl text-primary"
+              aria-label={`${publicRecipe.rating} out of 5 stars`}
+            >
+              {"★".repeat(publicRecipe.rating)}
+              <span className="text-foreground/30">{"★".repeat(5 - publicRecipe.rating)}</span>
+            </p>
+          )}
+        </div>
+
+        {publicRecipe.photoDataUrl && (
+          // eslint-disable-next-line @next/next/no-img-element
+          <img
+            src={publicRecipe.photoDataUrl}
+            alt=""
+            className="w-full rounded-lg object-cover"
+          />
+        )}
+
+        {publicRecipe.sourceName && (
+          <div>
+            <h2 className="font-heading text-2xl font-semibold">Source</h2>
+            {publicSourceLink ? (
+              <SourceLink sourceName={publicRecipe.sourceName} />
+            ) : (
+              <p className="mt-1 text-lg text-foreground/80">
+                {publicRecipe.sourceName}
+                {publicRecipe.sourcePage && `, p. ${publicRecipe.sourcePage}`}
+              </p>
+            )}
+          </div>
+        )}
+
+        {publicRecipe.instructions && (
+          <div>
+            <h2 className="font-heading text-2xl font-semibold">Instructions</h2>
+            <p className="mt-2 whitespace-pre-wrap text-lg text-foreground/80">
+              {publicRecipe.instructions}
+            </p>
+          </div>
+        )}
+
+        {publicRecipe.notes && (
+          <div>
+            <h2 className="font-heading text-2xl font-semibold">Notes</h2>
+            <p className="mt-2 whitespace-pre-wrap text-lg text-foreground/80">
+              {publicRecipe.notes}
+            </p>
+          </div>
+        )}
+
+        <div>
+          <h2 className="font-heading text-2xl font-semibold">Ingredients</h2>
+          {publicRecipe.ingredients.length === 0 ? (
+            <p className="mt-2 text-base text-foreground/60">No ingredients listed.</p>
+          ) : (
+            <ul className="mt-2 flex flex-col gap-1">
+              {publicRecipe.ingredients.map((ingredient) => (
+                <li key={ingredient.id} className="text-lg text-foreground/80">
+                  {ingredient.name}
+                </li>
+              ))}
+            </ul>
+          )}
+        </div>
+
+        <p className="text-base text-foreground/60">
+          <Link href="/recipes" className="text-secondary underline">
+            Sign in
+          </Link>{" "}
+          to save this to your own recipes or add it to your meal plan.
+        </p>
       </div>
     );
   }
 
-  const { id } = await params;
-  const recipeId = Number(id);
-  const recipe = Number.isInteger(recipeId) ? await getRecipe(recipeId, session.appUserId) : undefined;
-
-  if (!recipe) notFound();
-
   const today = new Date().toISOString().slice(0, 10);
   const hasCalendarSync = Boolean(await getExtrasAccessToken());
-  const sourceLink = sourceUrl(recipe.sourceName);
 
   return (
     <div className="mx-auto flex w-full max-w-2xl flex-1 flex-col gap-8 px-6 py-10">
@@ -128,16 +213,7 @@ export default async function RecipePage({
             defaultPage={recipe.sourcePage}
           />
         </div>
-        {sourceLink && (
-          <a
-            href={sourceLink.toString()}
-            target="_blank"
-            rel="noopener noreferrer"
-            className="mt-1 inline-block text-base text-secondary underline"
-          >
-            {sourceLink.hostname} &#8599;
-          </a>
-        )}
+        <SourceLink sourceName={recipe.sourceName} />
       </div>
 
       {recipe.instructions && (

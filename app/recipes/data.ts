@@ -40,6 +40,18 @@ export type RecipeWithDetails = {
   plannedDates: PlannedDate[];
 };
 
+export type PublicRecipe = {
+  id: number;
+  name: string;
+  instructions: string | null;
+  notes: string | null;
+  rating: number | null;
+  photoDataUrl: string | null;
+  sourceName: string | null;
+  sourcePage: string | null;
+  ingredients: Ingredient[];
+};
+
 export async function getRecipes(userId: number): Promise<Recipe[]> {
   const rows = await sql`
     SELECT
@@ -110,4 +122,37 @@ export async function getRecipe(
     ingredients: ingredients as unknown as Ingredient[],
     plannedDates: plannedDates as unknown as PlannedDate[],
   };
+}
+
+// No user_id scoping — used for the read-only view a recipe link (e.g. from
+// a calendar event) opens to when the viewer isn't signed in as the owner.
+// Only exposes fields relevant to reading a recipe, nothing account-specific.
+export async function getPublicRecipe(id: number): Promise<PublicRecipe | undefined> {
+  const recipeRows = await sql`
+    SELECT id, name, instructions, notes, rating, photo_data_url AS "photoDataUrl",
+           source_name AS "sourceName", source_page AS "sourcePage"
+    FROM recipes
+    WHERE id = ${id}
+  `;
+  const recipe = recipeRows[0] as
+    | {
+        id: number;
+        name: string;
+        instructions: string | null;
+        notes: string | null;
+        rating: number | null;
+        photoDataUrl: string | null;
+        sourceName: string | null;
+        sourcePage: string | null;
+      }
+    | undefined;
+  if (!recipe) return undefined;
+
+  const ingredients = await sql`
+    SELECT id, name FROM recipe_ingredients
+    WHERE recipe_id = ${id}
+    ORDER BY position ASC, id ASC
+  `;
+
+  return { ...recipe, ingredients: ingredients as unknown as Ingredient[] };
 }
