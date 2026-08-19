@@ -19,19 +19,25 @@ export async function planMeal(
   }
 
   // No calendar event at all unless the owner has connected the bonus
-  // calendar/Gmail client — public users' meal plans stay in-app only.
+  // calendar/Gmail client — public users' meal plans stay in-app only. And
+  // even for the owner, a failed push (expired token, API hiccup) shouldn't
+  // block saving the meal plan entry itself — best-effort, like the delete path.
   let calendarEventId: string | null = null;
   const accessToken = await getExtrasAccessToken();
   if (accessToken) {
-    const created = await googleFetch(eventsUrl(FAMILY_CALENDAR_ID), accessToken, {
-      method: "POST",
-      body: JSON.stringify({
-        summary: `${isSide ? "Side" : "Meal"}: ${recipeName}`,
-        start: { dateTime: `${date}T17:00:00`, timeZone },
-        end: { dateTime: `${date}T18:00:00`, timeZone },
-      }),
-    });
-    calendarEventId = created.id;
+    try {
+      const created = await googleFetch(eventsUrl(FAMILY_CALENDAR_ID), accessToken, {
+        method: "POST",
+        body: JSON.stringify({
+          summary: `${isSide ? "Side" : "Meal"}: ${recipeName}`,
+          start: { dateTime: `${date}T17:00:00`, timeZone },
+          end: { dateTime: `${date}T18:00:00`, timeZone },
+        }),
+      });
+      calendarEventId = created.id;
+    } catch {
+      // Best-effort: fall back to an in-app-only entry.
+    }
   }
 
   await sql`
@@ -57,15 +63,19 @@ export async function addQuickMeal(formData: FormData) {
   let calendarEventId: string | null = null;
   const accessToken = await getExtrasAccessToken();
   if (accessToken) {
-    const created = await googleFetch(eventsUrl(FAMILY_CALENDAR_ID), accessToken, {
-      method: "POST",
-      body: JSON.stringify({
-        summary: `${isSide ? "Side" : "Meal"}: ${name}`,
-        start: { dateTime: `${date}T17:00:00`, timeZone },
-        end: { dateTime: `${date}T18:00:00`, timeZone },
-      }),
-    });
-    calendarEventId = created.id;
+    try {
+      const created = await googleFetch(eventsUrl(FAMILY_CALENDAR_ID), accessToken, {
+        method: "POST",
+        body: JSON.stringify({
+          summary: `${isSide ? "Side" : "Meal"}: ${name}`,
+          start: { dateTime: `${date}T17:00:00`, timeZone },
+          end: { dateTime: `${date}T18:00:00`, timeZone },
+        }),
+      });
+      calendarEventId = created.id;
+    } catch {
+      // Best-effort: fall back to an in-app-only entry.
+    }
   }
 
   await sql`
@@ -110,15 +120,19 @@ export async function toggleMealSide(entryId: number, formData: FormData) {
       }
     } else {
       // Entry predates calendar events for sides — create one now.
-      const created = await googleFetch(eventsUrl(FAMILY_CALENDAR_ID), accessToken, {
-        method: "POST",
-        body: JSON.stringify({
-          summary,
-          start: { dateTime: `${entry.date}T17:00:00`, timeZone },
-          end: { dateTime: `${entry.date}T18:00:00`, timeZone },
-        }),
-      });
-      newCalendarEventId = created.id;
+      try {
+        const created = await googleFetch(eventsUrl(FAMILY_CALENDAR_ID), accessToken, {
+          method: "POST",
+          body: JSON.stringify({
+            summary,
+            start: { dateTime: `${entry.date}T17:00:00`, timeZone },
+            end: { dateTime: `${entry.date}T18:00:00`, timeZone },
+          }),
+        });
+        newCalendarEventId = created.id;
+      } catch {
+        // Best-effort: the side/main toggle should still save either way.
+      }
     }
   }
 
