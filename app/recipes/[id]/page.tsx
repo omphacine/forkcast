@@ -28,6 +28,18 @@ function formatDate(dateStr: string) {
   });
 }
 
+// A recipe's source is free text (cookbook, website, etc.) — only treat it as
+// a link when it's actually a full http(s) URL, not just any string.
+function sourceUrl(value: string | null): URL | null {
+  if (!value) return null;
+  try {
+    const url = new URL(value);
+    return url.protocol === "http:" || url.protocol === "https:" ? url : null;
+  } catch {
+    return null;
+  }
+}
+
 export default async function RecipePage({
   params,
 }: {
@@ -67,6 +79,7 @@ export default async function RecipePage({
 
   const today = new Date().toISOString().slice(0, 10);
   const hasCalendarSync = Boolean(await getExtrasAccessToken());
+  const sourceLink = sourceUrl(recipe.sourceName);
 
   return (
     <div className="mx-auto flex w-full max-w-2xl flex-1 flex-col gap-8 px-6 py-10">
@@ -115,6 +128,16 @@ export default async function RecipePage({
             defaultPage={recipe.sourcePage}
           />
         </div>
+        {sourceLink && (
+          <a
+            href={sourceLink.toString()}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="mt-1 inline-block text-base text-secondary underline"
+          >
+            {sourceLink.hostname} &#8599;
+          </a>
+        )}
       </div>
 
       {recipe.instructions && (
