@@ -2,7 +2,13 @@
 
 import { revalidatePath } from "next/cache";
 import sql from "@/lib/db";
-import { FAMILY_CALENDAR_ID, eventsUrl, getExtrasAccessToken, googleFetch } from "@/lib/google";
+import {
+  FAMILY_CALENDAR_ID,
+  eventsUrl,
+  getExtrasAccessToken,
+  googleFetch,
+  siteUrl,
+} from "@/lib/google";
 import { getUserId } from "@/lib/user";
 
 export async function planMeal(
@@ -30,6 +36,7 @@ export async function planMeal(
         method: "POST",
         body: JSON.stringify({
           summary: `${isSide ? "Side" : "Meal"}: ${recipeName}`,
+          description: siteUrl(`/recipes/${recipeId}`),
           start: { dateTime: `${date}T17:00:00`, timeZone },
           end: { dateTime: `${date}T18:00:00`, timeZone },
         }),
@@ -110,10 +117,14 @@ export async function toggleMealSide(entryId: number, formData: FormData) {
 
     if (entry.calendarEventId) {
       // Already has an event — just relabel it rather than delete/recreate.
+      // Also backfills the recipe link for events created before it existed.
       try {
         await googleFetch(`${eventsUrl(FAMILY_CALENDAR_ID)}/${entry.calendarEventId}`, accessToken, {
           method: "PATCH",
-          body: JSON.stringify({ summary }),
+          body: JSON.stringify({
+            summary,
+            ...(entry.recipeId ? { description: siteUrl(`/recipes/${entry.recipeId}`) } : {}),
+          }),
         });
       } catch {
         // Best-effort: the event may already be gone.
@@ -125,6 +136,7 @@ export async function toggleMealSide(entryId: number, formData: FormData) {
           method: "POST",
           body: JSON.stringify({
             summary,
+            ...(entry.recipeId ? { description: siteUrl(`/recipes/${entry.recipeId}`) } : {}),
             start: { dateTime: `${entry.date}T17:00:00`, timeZone },
             end: { dateTime: `${entry.date}T18:00:00`, timeZone },
           }),

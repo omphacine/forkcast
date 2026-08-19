@@ -13,6 +13,15 @@ export function eventsUrl(calendarId: string) {
   return `${CALENDAR_API_ROOT}/calendars/${encodeURIComponent(calendarId)}/events`;
 }
 
+// Stable production URL, not the per-deployment one — so links keep working
+// across future deploys. Falls back to localhost for local dev.
+export function siteUrl(path: string) {
+  const base = process.env.VERCEL_PROJECT_PRODUCTION_URL
+    ? `https://${process.env.VERCEL_PROJECT_PRODUCTION_URL}`
+    : "http://localhost:3000";
+  return `${base}${path}`;
+}
+
 // Returns the owner's bonus Calendar/Gmail access token, or null if the signed-in
 // user hasn't connected it (true for every public user, and for the owner before
 // they've connected it).
