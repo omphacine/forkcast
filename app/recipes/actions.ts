@@ -418,3 +418,56 @@ export async function addIngredientsToShoppingList(
 
   revalidatePath("/shopping");
 }
+
+export async function addRecipeIngredient(recipeId: number, formData: FormData) {
+  const userId = await getUserId();
+  const name = String(formData.get("name") ?? "").trim();
+  if (!name) throw new Error("Ingredient name is required");
+
+  const [owned] = await sql`SELECT id FROM recipes WHERE id = ${recipeId} AND user_id = ${userId}`;
+  if (!owned) throw new Error("Recipe not found");
+
+  const [{ maxPosition }] = await sql`
+    SELECT COALESCE(MAX(position), -1) AS "maxPosition"
+    FROM recipe_ingredients WHERE recipe_id = ${recipeId}
+  `;
+
+  await sql`
+    INSERT INTO recipe_ingredients (recipe_id, name, position)
+    VALUES (${recipeId}, ${name}, ${maxPosition + 1})
+  `;
+
+  revalidatePath(`/recipes/${recipeId}`);
+}
+
+export async function updateRecipeIngredient(
+  recipeId: number,
+  ingredientId: number,
+  formData: FormData,
+) {
+  const userId = await getUserId();
+  const name = String(formData.get("name") ?? "").trim();
+  if (!name) throw new Error("Ingredient name is required");
+
+  await sql`
+    UPDATE recipe_ingredients SET name = ${name}
+    WHERE id = ${ingredientId}
+      AND recipe_id = ${recipeId}
+      AND recipe_id IN (SELECT id FROM recipes WHERE user_id = ${userId})
+  `;
+
+  revalidatePath(`/recipes/${recipeId}`);
+}
+
+export async function deleteRecipeIngredient(recipeId: number, ingredientId: number) {
+  const userId = await getUserId();
+
+  await sql`
+    DELETE FROM recipe_ingredients
+    WHERE id = ${ingredientId}
+      AND recipe_id = ${recipeId}
+      AND recipe_id IN (SELECT id FROM recipes WHERE user_id = ${userId})
+  `;
+
+  revalidatePath(`/recipes/${recipeId}`);
+}

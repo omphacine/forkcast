@@ -19,6 +19,7 @@ import { RecipeNotesForm } from "../RecipeNotesForm";
 import { RecipePhotoForm } from "../RecipePhotoForm";
 import { RecipeNameForm } from "../RecipeNameForm";
 import { RecipeSourceForm } from "../RecipeSourceForm";
+import { RecipeIngredientsList } from "../RecipeIngredientsList";
 
 function formatDate(dateStr: string) {
   return new Date(`${dateStr}T00:00:00`).toLocaleDateString(undefined, {
@@ -238,37 +239,20 @@ export default async function RecipePage({
 
       <div>
         <h2 className="font-heading text-2xl font-semibold">Ingredients</h2>
-        {recipe.ingredients.length === 0 ? (
-          <p className="mt-2 text-base text-foreground/60">No ingredients listed.</p>
-        ) : (
-          <form
-            action={addIngredientsToShoppingList.bind(null, recipe.name)}
-            className="mt-4 flex flex-col gap-3"
-          >
-            <ul className="flex flex-col gap-2">
-              {recipe.ingredients.map((ingredient) => (
-                <li key={ingredient.id} className="flex items-center gap-3">
-                  <input
-                    type="checkbox"
-                    name="ingredient"
-                    value={ingredient.name}
-                    id={`ingredient-${ingredient.id}`}
-                    className="h-5 w-5 shrink-0"
-                  />
-                  <label htmlFor={`ingredient-${ingredient.id}`} className="text-lg">
-                    {ingredient.name}
-                  </label>
-                </li>
-              ))}
-            </ul>
+        <form
+          action={addIngredientsToShoppingList.bind(null, recipe.name)}
+          className="mt-4 flex flex-col gap-3"
+        >
+          <RecipeIngredientsList recipeId={recipe.id} ingredients={recipe.ingredients} />
+          {recipe.ingredients.length > 0 && (
             <button
               type="submit"
               className="self-start rounded-full bg-primary px-5 py-2 text-base font-medium text-white hover:opacity-90"
             >
               Add checked items to shopping list
             </button>
-          </form>
-        )}
+          )}
+        </form>
       </div>
 
       <div>
