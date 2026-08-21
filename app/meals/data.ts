@@ -15,6 +15,21 @@ export type MealPlanDay = {
   meals: MealPlanItem[];
 };
 
+export async function getMealPlanEntry(
+  entryId: number,
+  userId: number,
+): Promise<MealPlanItem | undefined> {
+  const rows = await sql`
+    SELECT m.id AS "entryId", m.recipe_id AS "recipeId",
+           COALESCE(r.name, m.name) AS "recipeName", m.date,
+           m.calendar_event_id AS "calendarEventId", m.is_side AS "isSide"
+    FROM meal_plan_entries m
+    LEFT JOIN recipes r ON r.id = m.recipe_id
+    WHERE m.id = ${entryId} AND m.user_id = ${userId}
+  `;
+  return (rows as unknown as MealPlanItem[])[0];
+}
+
 export async function getWeeklyMealPlan(
   startDate: string,
   userId: number,

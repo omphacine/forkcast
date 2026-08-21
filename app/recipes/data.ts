@@ -52,6 +52,19 @@ export type PublicRecipe = {
   ingredients: Ingredient[];
 };
 
+export async function getRecipeIngredients(
+  recipeId: number,
+  userId: number,
+): Promise<Ingredient[]> {
+  const rows = await sql`
+    SELECT ri.id, ri.name FROM recipe_ingredients ri
+    JOIN recipes r ON r.id = ri.recipe_id
+    WHERE ri.recipe_id = ${recipeId} AND r.user_id = ${userId}
+    ORDER BY ri.position ASC, ri.id ASC
+  `;
+  return rows as unknown as Ingredient[];
+}
+
 export async function getRecipes(userId: number): Promise<Recipe[]> {
   const rows = await sql`
     SELECT

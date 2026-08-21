@@ -156,6 +156,38 @@ export async function toggleMealSide(entryId: number, formData: FormData) {
   revalidatePath("/meals");
 }
 
+// Applies the reviewed/edited ingredient-to-inventory matches from the
+// "Made it" screen. For each included row with an inventory item chosen: an
+// empty quantity means "used it all" (remove the item), otherwise the
+// quantity field is taken as-is as the new leftover amount.
+export async function markMealMade(formData: FormData) {
+  const userId = await getUserId();
+  const count = Number(formData.get("count") ?? 0);
+
+  for (let i = 0; i < count; i++) {
+    if (formData.get(`included-${i}`) !== "on") continue;
+
+    const itemIdRaw = String(formData.get(`inventoryItemId-${i}`) ?? "");
+    if (!itemIdRaw || itemIdRaw === "none") continue;
+    const itemId = Number(itemIdRaw);
+    if (!Number.isInteger(itemId)) continue;
+
+    const quantity = String(formData.get(`quantity-${i}`) ?? "").trim();
+
+    if (quantity) {
+      await sql`
+        UPDATE inventory_items SET quantity = ${quantity}
+        WHERE id = ${itemId} AND user_id = ${userId}
+      `;
+    } else {
+      await sql`DELETE FROM inventory_items WHERE id = ${itemId} AND user_id = ${userId}`;
+    }
+  }
+
+  revalidatePath("/inventory");
+  revalidatePath("/meals");
+}
+
 export async function deleteMealPlanEntry(
   entryId: number,
   calendarEventId: string | null,

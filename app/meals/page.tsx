@@ -172,6 +172,14 @@ export default async function MealsPage({
                               <p className="truncate text-xl font-medium">{meal.recipeName}</p>
                             )}
                           </div>
+                          {meal.recipeId !== null && (
+                            <Link
+                              href={`/meals/${meal.entryId}/made`}
+                              className="shrink-0 rounded-full border border-foreground/10 px-2 py-0.5 text-sm text-foreground/60 hover:border-foreground/20"
+                            >
+                              Made it
+                            </Link>
+                          )}
                           <form action={toggleMealSide.bind(null, meal.entryId)}>
                             <input type="hidden" name="timeZone" value={timeZone} />
                             <button
