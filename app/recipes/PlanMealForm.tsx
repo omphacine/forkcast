@@ -2,8 +2,7 @@
 
 import { useTransition, type FormEvent } from "react";
 import { planMeal } from "@/app/meals/actions";
-import { Toast } from "@/app/Toast";
-import { useToast } from "@/app/useToast";
+import { showToast } from "@/app/showToast";
 
 function formatDate(dateStr: string) {
   return new Date(`${dateStr}T00:00:00`).toLocaleDateString(undefined, {
@@ -16,14 +15,13 @@ function formatDate(dateStr: string) {
 export function PlanMealForm({
   recipeId,
   recipeName,
-  today,
+  defaultDate,
 }: {
   recipeId: number;
   recipeName: string;
-  today: string;
+  defaultDate: string;
 }) {
   const [isPending, startTransition] = useTransition();
-  const [toastMessage, setToastMessage] = useToast();
 
   function handleSubmit(e: FormEvent<HTMLFormElement>) {
     e.preventDefault();
@@ -33,41 +31,38 @@ export function PlanMealForm({
     formData.set("timeZone", Intl.DateTimeFormat().resolvedOptions().timeZone);
     startTransition(async () => {
       await planMeal(recipeId, recipeName, formData);
-      setToastMessage(
+      showToast(
         isSide ? `Side added to ${formatDate(date)}` : `Meal planned for ${formatDate(date)}`,
       );
     });
   }
 
   return (
-    <>
-      <form
-        onSubmit={handleSubmit}
-        className="mt-4 flex flex-col gap-3 sm:flex-row sm:items-end"
+    <form
+      onSubmit={handleSubmit}
+      className="mt-4 flex flex-col gap-3 sm:flex-row sm:items-end"
+    >
+      <label className="min-w-0 flex-1 text-base text-foreground/60">
+        Date
+        <input
+          name="date"
+          type="date"
+          defaultValue={defaultDate}
+          required
+          className="mt-1 w-full rounded-md border border-foreground/10 bg-transparent px-3 py-2 text-lg"
+        />
+      </label>
+      <label className="flex shrink-0 items-center gap-2 pb-2 text-base text-foreground/60">
+        <input type="checkbox" name="isSide" className="h-5 w-5" />
+        Side dish
+      </label>
+      <button
+        type="submit"
+        disabled={isPending}
+        className="shrink-0 rounded-full bg-primary px-5 py-2 text-base font-medium text-white hover:opacity-90 disabled:opacity-50"
       >
-        <label className="min-w-0 flex-1 text-base text-foreground/60">
-          Date
-          <input
-            name="date"
-            type="date"
-            defaultValue={today}
-            required
-            className="mt-1 w-full rounded-md border border-foreground/10 bg-transparent px-3 py-2 text-lg"
-          />
-        </label>
-        <label className="flex shrink-0 items-center gap-2 pb-2 text-base text-foreground/60">
-          <input type="checkbox" name="isSide" className="h-5 w-5" />
-          Side dish
-        </label>
-        <button
-          type="submit"
-          disabled={isPending}
-          className="shrink-0 rounded-full bg-primary px-5 py-2 text-base font-medium text-white hover:opacity-90 disabled:opacity-50"
-        >
-          {isPending ? "Adding…" : "Add to meal plan"}
-        </button>
-      </form>
-      <Toast message={toastMessage} />
-    </>
+        {isPending ? "Adding…" : "Add to meal plan"}
+      </button>
+    </form>
   );
 }

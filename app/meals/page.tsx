@@ -148,7 +148,10 @@ export default async function MealsPage({
 
                 <div className="min-w-0 flex-1 self-center">
                   {day.meals.length === 0 ? (
-                    <Link href="/recipes" className="text-lg text-foreground/60 underline">
+                    <Link
+                      href={`/recipes?planDate=${day.dateStr}`}
+                      className="text-lg text-foreground/60 underline"
+                    >
                       Nothing planned
                     </Link>
                   ) : (

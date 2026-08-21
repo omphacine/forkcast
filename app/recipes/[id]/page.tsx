@@ -58,8 +58,10 @@ function SourceLink({ sourceName }: { sourceName: string | null }) {
 
 export default async function RecipePage({
   params,
+  searchParams,
 }: {
   params: Promise<{ id: string }>;
+  searchParams: Promise<{ planDate?: string }>;
 }) {
   const { id } = await params;
   const recipeId = Number(id);
@@ -166,6 +168,9 @@ export default async function RecipePage({
 
   const today = new Date().toISOString().slice(0, 10);
   const hasCalendarSync = Boolean(await getExtrasAccessToken());
+  const { planDate } = await searchParams;
+  const defaultDate =
+    planDate && /^\d{4}-\d{2}-\d{2}$/.test(planDate) ? planDate : today;
 
   return (
     <div className="mx-auto flex w-full max-w-2xl flex-1 flex-col gap-8 px-6 py-10">
@@ -257,7 +262,7 @@ export default async function RecipePage({
 
       <div>
         <h2 className="font-heading text-2xl font-semibold">Plan this meal</h2>
-        <PlanMealForm recipeId={recipe.id} recipeName={recipe.name} today={today} />
+        <PlanMealForm recipeId={recipe.id} recipeName={recipe.name} defaultDate={defaultDate} />
         <p className="mt-2 text-sm text-foreground/50">
           {hasCalendarSync
             ? `Adds a "Meal: ${recipe.name}" (or "Side: ${recipe.name}" if checked) event at 5:00 PM on the family calendar.`

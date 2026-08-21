@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import { Fredoka, Nunito_Sans } from "next/font/google";
 import "./globals.css";
 import { ThemeToggle } from "./ThemeToggle";
+import { ToastListener } from "./ToastListener";
 
 const fredoka = Fredoka({
   variable: "--font-fredoka",
@@ -48,6 +49,7 @@ export default function RootLayout({
       <body className="min-h-full flex flex-col">
         {children}
         <ThemeToggle />
+        <ToastListener />
       </body>
     </html>
   );

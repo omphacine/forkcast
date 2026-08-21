@@ -20,7 +20,8 @@ function groupBy(recipes: Recipe[], getKey: (recipe: Recipe) => string | null) {
   return Array.from(groups.entries());
 }
 
-function RecipeRow({ recipe }: { recipe: Recipe }) {
+function RecipeRow({ recipe, planDate }: { recipe: Recipe; planDate?: string }) {
+  const href = planDate ? `/recipes/${recipe.id}?planDate=${planDate}` : `/recipes/${recipe.id}`;
   return (
     <li className="flex flex-wrap items-center gap-3 rounded-lg border border-foreground/10 px-4 py-3 hover:border-primary">
       {recipe.photoDataUrl && (
@@ -31,7 +32,7 @@ function RecipeRow({ recipe }: { recipe: Recipe }) {
           className="h-12 w-12 shrink-0 rounded-md object-cover"
         />
       )}
-      <Link href={`/recipes/${recipe.id}`} className="min-w-[180px] flex-1">
+      <Link href={href} className="min-w-[180px] flex-1">
         <p className="truncate text-lg font-medium">{recipe.name}</p>
         {recipe.rating && (
           <p className="text-base text-primary" aria-label={`${recipe.rating} out of 5 stars`}>
@@ -69,7 +70,11 @@ function RecipeRow({ recipe }: { recipe: Recipe }) {
   );
 }
 
-export default async function RecipesPage() {
+export default async function RecipesPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ planDate?: string }>;
+}) {
   const session = await auth();
 
   if (!session?.appUserId) {
@@ -100,6 +105,10 @@ export default async function RecipesPage() {
   const byMainIngredient = groupBy(recipes, (recipe) => recipe.mainIngredient);
   const byCookingMethod = groupBy(recipes, (recipe) => recipe.cookingMethod);
   const favorites = recipes.filter((recipe) => recipe.favorite);
+
+  const params = await searchParams;
+  const planDate =
+    params.planDate && /^\d{4}-\d{2}-\d{2}$/.test(params.planDate) ? params.planDate : undefined;
 
   return (
     <div className="mx-auto flex w-full max-w-2xl flex-1 flex-col gap-8 px-6 py-10">
@@ -142,7 +151,7 @@ export default async function RecipesPage() {
           <h2 className="font-heading text-2xl font-semibold">Favorites</h2>
           <ul className="mt-4 flex flex-col gap-3">
             {favorites.map((recipe) => (
-              <RecipeRow key={recipe.id} recipe={recipe} />
+              <RecipeRow key={recipe.id} recipe={recipe} planDate={planDate} />
             ))}
           </ul>
         </div>
@@ -170,7 +179,7 @@ export default async function RecipesPage() {
                     </summary>
                     <ul className="mt-2 flex flex-col gap-3">
                       {groupRecipes.map((recipe) => (
-                        <RecipeRow key={recipe.id} recipe={recipe} />
+                        <RecipeRow key={recipe.id} recipe={recipe} planDate={planDate} />
                       ))}
                     </ul>
                   </details>
@@ -194,7 +203,7 @@ export default async function RecipesPage() {
                     </summary>
                     <ul className="mt-2 flex flex-col gap-3">
                       {groupRecipes.map((recipe) => (
-                        <RecipeRow key={recipe.id} recipe={recipe} />
+                        <RecipeRow key={recipe.id} recipe={recipe} planDate={planDate} />
                       ))}
                     </ul>
                   </details>
