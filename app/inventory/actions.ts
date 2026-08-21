@@ -121,12 +121,13 @@ function receiptItemSchema(categories: string[]) {
   };
 }
 
-async function extractReceiptItems(
+async function extractInventoryItems(
   content: Array<
     | { type: "text"; text: string }
     | { type: "image"; source: { type: "base64"; media_type: ScannableImageType; data: string } }
   >,
   categories: string[],
+  sourceLabel: string,
 ): Promise<ScanReceiptResult> {
   let response;
   try {
@@ -146,19 +147,19 @@ async function extractReceiptItems(
   }
 
   if (response.stop_reason === "refusal") {
-    return { ok: false, reason: "Claude couldn't process that receipt." };
+    return { ok: false, reason: `Claude couldn't process that ${sourceLabel}.` };
   }
 
   const textBlock = response.content.find((block) => block.type === "text");
   if (!textBlock || textBlock.type !== "text") {
-    return { ok: false, reason: "Couldn't read items from that receipt." };
+    return { ok: false, reason: `Couldn't read items from that ${sourceLabel}.` };
   }
 
   let parsed: { items: ScannedInventoryItem[] };
   try {
     parsed = JSON.parse(textBlock.text);
   } catch {
-    return { ok: false, reason: "Couldn't understand that receipt." };
+    return { ok: false, reason: `Couldn't understand that ${sourceLabel}.` };
   }
 
   const items = parsed.items
@@ -170,7 +171,7 @@ async function extractReceiptItems(
     .filter((i) => i.name);
 
   if (items.length === 0) {
-    return { ok: false, reason: "Couldn't find any items on that receipt." };
+    return { ok: false, reason: `Couldn't find any items in that ${sourceLabel}.` };
   }
 
   return { ok: true, items };
@@ -204,7 +205,7 @@ ${categorizeInstruction(categories)}`;
       };
     }
     const base64 = Buffer.from(await photo.arrayBuffer()).toString("base64");
-    return extractReceiptItems(
+    return extractInventoryItems(
       [
         {
           type: "image",
@@ -216,11 +217,12 @@ ${categorizeInstruction(categories)}`;
         },
       ],
       categories,
+      "receipt",
     );
   }
 
   if (pastedText) {
-    return extractReceiptItems(
+    return extractInventoryItems(
       [
         {
           type: "text",
@@ -228,10 +230,51 @@ ${categorizeInstruction(categories)}`;
         },
       ],
       categories,
+      "receipt",
     );
   }
 
   return { ok: false, reason: "Add a photo or paste the receipt text first." };
+}
+
+// A photo of items sitting out (e.g. groceries just unpacked on the counter),
+// not a receipt — identifies each item visually instead of reading printed text.
+export async function scanCounterPhoto(formData: FormData): Promise<ScanReceiptResult> {
+  const userId = await getUserId();
+  const existingCategories = await getCategories(userId);
+  const categories = existingCategories.length > 0 ? existingCategories : DEFAULT_CATEGORIES;
+
+  const photo = formData.get("photo");
+  if (!(photo instanceof File) || photo.size === 0) {
+    return { ok: false, reason: "Choose a photo first." };
+  }
+  if (!SCANNABLE_IMAGE_TYPES.has(photo.type)) {
+    return {
+      ok: false,
+      reason: `That file type (${photo.type || "unknown"}) isn't supported — use a JPEG or PNG photo.`,
+    };
+  }
+
+  const base64 = Buffer.from(await photo.arrayBuffer()).toString("base64");
+  const instructions = `This is a photo of grocery/food items sitting out — e.g. on a kitchen counter after shopping — not a receipt. Identify each distinct food item visible in the photo.
+
+For each item, set quantity to the pack size printed on its own packaging if legible (e.g. "16 oz", "1 gallon", "12 count"), or the number of visible units if it's a loose/countable item (e.g. "4" for four apples sitting together), or null if neither is clear. Keep item names concise and recognizable — include the brand if it's visible on the packaging (e.g. "Barilla Angel Hair Pasta", "Bananas").
+
+Ignore any non-food objects that happen to be in frame (utensils, mail, receipts, packaging trash, etc.).
+
+${categorizeInstruction(categories)}`;
+
+  return extractInventoryItems(
+    [
+      {
+        type: "image",
+        source: { type: "base64", media_type: photo.type as ScannableImageType, data: base64 },
+      },
+      { type: "text", text: instructions },
+    ],
+    categories,
+    "photo",
+  );
 }
 
 // --- Owner-only Gmail import (requires the "google-extras" bonus connection) ---
@@ -351,7 +394,7 @@ export async function scanReceiptEmail(messageId: string): Promise<ScanReceiptRe
   const existingCategories = await getCategories(userId);
   const categories = existingCategories.length > 0 ? existingCategories : DEFAULT_CATEGORIES;
 
-  return extractReceiptItems(
+  return extractInventoryItems(
     [
       {
         type: "text",
@@ -373,6 +416,7 @@ ${bodyText}`,
       },
     ],
     categories,
+    "receipt",
   );
 }
 

@@ -1,13 +1,15 @@
 "use client";
 
-import { useRef, useState, useTransition, type ChangeEvent, type FormEvent } from "react";
+import { useState, useTransition, type ChangeEvent, type FormEvent } from "react";
 import {
   addScannedInventoryItems,
   findSchnucksReceipts,
+  scanCounterPhoto,
   scanReceiptEmail,
   scanReceiptManual,
   type ReceiptEmailSummary,
   type ScannedInventoryItem,
+  type ScanReceiptResult,
 } from "./actions";
 import { LocationSelect } from "./LocationSelect";
 
@@ -32,22 +34,25 @@ export function ScanReceiptForm({
   const [receipts, setReceipts] = useState<ReceiptEmailSummary[] | null>(null);
   const [items, setItems] = useState<ScannedInventoryItem[] | null>(null);
   const [pastedText, setPastedText] = useState("");
-  const fileInputRef = useRef<HTMLInputElement>(null);
 
-  function handleFileChange(e: ChangeEvent<HTMLInputElement>) {
+  function handlePhotoChange(
+    e: ChangeEvent<HTMLInputElement>,
+    scanFn: (formData: FormData) => Promise<ScanReceiptResult>,
+  ) {
     const file = e.target.files?.[0];
     if (!file) return;
+    const input = e.target;
     setError(null);
     const formData = new FormData();
     formData.set("photo", file);
     startScan(async () => {
-      const result = await scanReceiptManual(formData);
+      const result = await scanFn(formData);
       if (result.ok) {
         setItems(result.items);
       } else {
         setError(result.reason);
       }
-      if (fileInputRef.current) fileInputRef.current.value = "";
+      input.value = "";
     });
   }
 
@@ -220,11 +225,21 @@ export function ScanReceiptForm({
           <label className="cursor-pointer rounded-full bg-primary px-5 py-2 text-base font-medium text-white hover:opacity-90 aria-disabled:opacity-50">
             {isScanning ? "Reading…" : "Scan a receipt photo"}
             <input
-              ref={fileInputRef}
               type="file"
               accept="image/*"
               capture="environment"
-              onChange={handleFileChange}
+              onChange={(e) => handlePhotoChange(e, scanReceiptManual)}
+              disabled={isScanning}
+              className="hidden"
+            />
+          </label>
+          <label className="cursor-pointer rounded-full border border-foreground/10 px-5 py-2 text-base font-medium hover:bg-foreground/5 aria-disabled:opacity-50">
+            {isScanning ? "Reading…" : "Scan items on your counter"}
+            <input
+              type="file"
+              accept="image/*"
+              capture="environment"
+              onChange={(e) => handlePhotoChange(e, scanCounterPhoto)}
               disabled={isScanning}
               className="hidden"
             />
@@ -241,8 +256,9 @@ export function ScanReceiptForm({
           )}
         </div>
         <p className="text-sm text-foreground/50">
-          Reads a photo of a paper receipt and lists the items for you to review before
-          anything is added to inventory.
+          Reads a photo of a paper receipt, or a photo of items sitting out (like groceries on
+          the counter), and lists what it finds for you to review before anything is added to
+          inventory.
         </p>
       </div>
 
