@@ -12,14 +12,14 @@ import {
   updateRecipeNotes,
   updateRecipeSource,
 } from "../actions";
-import { deleteMealPlanEntry, planMeal } from "@/app/meals/actions";
-import { TimeZoneField } from "../TimeZoneField";
+import { deleteMealPlanEntry } from "@/app/meals/actions";
 import { RecipeRating } from "../RecipeRating";
 import { RecipeNotesForm } from "../RecipeNotesForm";
 import { RecipePhotoForm } from "../RecipePhotoForm";
 import { RecipeNameForm } from "../RecipeNameForm";
 import { RecipeSourceForm } from "../RecipeSourceForm";
 import { RecipeIngredientsList } from "../RecipeIngredientsList";
+import { PlanMealForm } from "../PlanMealForm";
 
 function formatDate(dateStr: string) {
   return new Date(`${dateStr}T00:00:00`).toLocaleDateString(undefined, {
@@ -257,32 +257,7 @@ export default async function RecipePage({
 
       <div>
         <h2 className="font-heading text-2xl font-semibold">Plan this meal</h2>
-        <form
-          action={planMeal.bind(null, recipe.id, recipe.name)}
-          className="mt-4 flex flex-col gap-3 sm:flex-row sm:items-end"
-        >
-          <TimeZoneField />
-          <label className="min-w-0 flex-1 text-base text-foreground/60">
-            Date
-            <input
-              name="date"
-              type="date"
-              defaultValue={today}
-              required
-              className="mt-1 w-full rounded-md border border-foreground/10 bg-transparent px-3 py-2 text-lg"
-            />
-          </label>
-          <label className="flex shrink-0 items-center gap-2 pb-2 text-base text-foreground/60">
-            <input type="checkbox" name="isSide" className="h-5 w-5" />
-            Side dish
-          </label>
-          <button
-            type="submit"
-            className="shrink-0 rounded-full bg-primary px-5 py-2 text-base font-medium text-white hover:opacity-90"
-          >
-            Add to meal plan
-          </button>
-        </form>
+        <PlanMealForm recipeId={recipe.id} recipeName={recipe.name} today={today} />
         <p className="mt-2 text-sm text-foreground/50">
           {hasCalendarSync
             ? `Adds a "Meal: ${recipe.name}" (or "Side: ${recipe.name}" if checked) event at 5:00 PM on the family calendar.`

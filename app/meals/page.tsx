@@ -2,8 +2,9 @@ import Link from "next/link";
 import { auth, signIn, signOut } from "@/auth";
 import { addDaysToDateStr, getWeekStart, getZonedParts } from "@/lib/google";
 import { getWeeklyMealPlan } from "./data";
-import { addQuickMeal, deleteMealPlanEntry, toggleMealSide } from "./actions";
+import { deleteMealPlanEntry, toggleMealSide } from "./actions";
 import { EnsureTimeZone } from "./EnsureTimeZone";
+import { QuickMealForm } from "./QuickMealForm";
 
 function dayLabel(dateStr: string) {
   const date = new Date(`${dateStr}T00:00:00`);
@@ -206,41 +207,7 @@ export default async function MealsPage({
           })}
         </div>
 
-        <form
-          action={addQuickMeal}
-          className="mt-4 flex flex-col gap-3 sm:flex-row sm:items-end"
-        >
-          <input type="hidden" name="timeZone" value={timeZone} />
-          <label className="min-w-0 flex-1 text-base text-foreground/60">
-            Quick meal (no recipe needed)
-            <input
-              name="name"
-              placeholder="e.g. Tacos"
-              required
-              className="mt-1 w-full rounded-md border border-foreground/10 bg-transparent px-3 py-2 text-lg"
-            />
-          </label>
-          <label className="text-base text-foreground/60">
-            Date
-            <input
-              name="date"
-              type="date"
-              defaultValue={today}
-              required
-              className="mt-1 w-full rounded-md border border-foreground/10 bg-transparent px-3 py-2 text-lg"
-            />
-          </label>
-          <label className="flex shrink-0 items-center gap-2 pb-2 text-base text-foreground/60">
-            <input type="checkbox" name="isSide" className="h-5 w-5" />
-            Side dish
-          </label>
-          <button
-            type="submit"
-            className="shrink-0 rounded-full bg-primary px-5 py-2 text-base font-medium text-white hover:opacity-90"
-          >
-            Add
-          </button>
-        </form>
+        <QuickMealForm today={today} />
       </div>
     </div>
   );
