@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { auth, signIn, signOut } from "@/auth";
 import { getZonedParts, getExtrasAccessToken } from "@/lib/google";
+import { getEffectiveOwner } from "@/lib/user";
 import { getInventoryItems, getLocations, type InventoryItem } from "./data";
 import {
   createInventoryItem,
@@ -79,6 +80,17 @@ export default async function InventoryPage({
             Sign in with Google
           </button>
         </form>
+        <Link href="/" className="text-sm text-foreground/60 underline">
+          Back home
+        </Link>
+      </div>
+    );
+  }
+
+  if ((await getEffectiveOwner())?.readOnly) {
+    return (
+      <div className="flex flex-1 flex-col items-center justify-center gap-4 bg-background p-8 text-center">
+        <p className="text-foreground/60">Food inventory isn&apos;t shared with you.</p>
         <Link href="/" className="text-sm text-foreground/60 underline">
           Back home
         </Link>

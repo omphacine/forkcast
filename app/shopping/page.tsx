@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { auth, signIn, signOut } from "@/auth";
+import { getEffectiveOwner } from "@/lib/user";
 import { getShoppingItems, type ShoppingItem } from "./data";
 import {
   createShoppingItem,
@@ -45,6 +46,17 @@ export default async function ShoppingPage() {
             Sign in with Google
           </button>
         </form>
+        <Link href="/" className="text-sm text-foreground/60 underline">
+          Back home
+        </Link>
+      </div>
+    );
+  }
+
+  if ((await getEffectiveOwner())?.readOnly) {
+    return (
+      <div className="flex flex-1 flex-col items-center justify-center gap-4 bg-background p-8 text-center">
+        <p className="text-foreground/60">The shopping list isn&apos;t shared with you.</p>
         <Link href="/" className="text-sm text-foreground/60 underline">
           Back home
         </Link>

@@ -1,7 +1,8 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { auth, signOut } from "@/auth";
+import { signOut } from "@/auth";
 import { getExtrasAccessToken } from "@/lib/google";
+import { getEffectiveOwner } from "@/lib/user";
 import { getPublicRecipe, getRecipe } from "../data";
 import {
   addIngredientsToShoppingList,
@@ -67,14 +68,16 @@ export default async function RecipePage({
   const recipeId = Number(id);
   if (!Number.isInteger(recipeId)) notFound();
 
-  const session = await auth();
-  const recipe = session?.appUserId ? await getRecipe(recipeId, session.appUserId) : undefined;
+  const effective = await getEffectiveOwner();
+  const recipe = effective ? await getRecipe(recipeId, effective.userId) : undefined;
 
   if (!recipe) {
-    // Not signed in, or signed in as someone other than the recipe's owner
-    // (e.g. a family member opening the link from a shared calendar event) —
-    // fall back to a read-only view instead of a hard 404, unless the recipe
-    // genuinely doesn't exist.
+    // Not signed in, or signed in as someone with no relationship to this
+    // recipe's owner at all (e.g. a stranger opening the link from a shared
+    // calendar event) — fall back to a read-only view instead of a hard 404,
+    // unless the recipe genuinely doesn't exist. A shared viewer never
+    // reaches this branch: getEffectiveOwner() already resolves their
+    // userId to the owner's, so getRecipe succeeds above.
     const publicRecipe = await getPublicRecipe(recipeId);
     if (!publicRecipe) notFound();
     const publicSourceLink = sourceUrl(publicRecipe.sourceName);
@@ -166,11 +169,13 @@ export default async function RecipePage({
     );
   }
 
+  const readOnly = effective?.readOnly ?? false;
   const today = new Date().toISOString().slice(0, 10);
   const hasCalendarSync = Boolean(await getExtrasAccessToken());
   const { planDate } = await searchParams;
   const defaultDate =
     planDate && /^\d{4}-\d{2}-\d{2}$/.test(planDate) ? planDate : today;
+  const recipeSourceLink = sourceUrl(recipe.sourceName);
 
   return (
     <div className="mx-auto flex w-full max-w-2xl flex-1 flex-col gap-8 px-6 py-10">
@@ -190,37 +195,80 @@ export default async function RecipePage({
         </form>
       </header>
 
-      <div className="flex flex-col gap-2">
-        <RecipeNameForm action={updateRecipeName.bind(null, recipe.id)} defaultValue={recipe.name} />
-        <form action={deleteRecipe.bind(null, recipe.id)}>
-          <button
-            type="submit"
-            className="text-base text-red-600 underline hover:text-red-700 dark:text-red-400"
-          >
-            Delete recipe
-          </button>
-        </form>
-      </div>
-
-      <RecipeRating recipeId={recipe.id} initialRating={recipe.rating} />
-
-      <RecipePhotoForm
-        photoDataUrl={recipe.photoDataUrl}
-        onUpload={setRecipePhoto.bind(null, recipe.id)}
-        onRemove={removeRecipePhoto.bind(null, recipe.id)}
-      />
-
-      <div>
-        <h2 className="font-heading text-2xl font-semibold">Source</h2>
-        <div className="mt-2">
-          <RecipeSourceForm
-            action={updateRecipeSource.bind(null, recipe.id)}
-            defaultName={recipe.sourceName}
-            defaultPage={recipe.sourcePage}
+      {readOnly ? (
+        <h1 className="font-heading text-4xl font-semibold">{recipe.name}</h1>
+      ) : (
+        <div className="flex flex-col gap-2">
+          <RecipeNameForm
+            action={updateRecipeName.bind(null, recipe.id)}
+            defaultValue={recipe.name}
           />
+          <form action={deleteRecipe.bind(null, recipe.id)}>
+            <button
+              type="submit"
+              className="text-base text-red-600 underline hover:text-red-700 dark:text-red-400"
+            >
+              Delete recipe
+            </button>
+          </form>
         </div>
-        <SourceLink sourceName={recipe.sourceName} />
-      </div>
+      )}
+
+      {readOnly ? (
+        recipe.rating && (
+          <p className="text-2xl text-primary" aria-label={`${recipe.rating} out of 5 stars`}>
+            {"★".repeat(recipe.rating)}
+            <span className="text-foreground/30">{"★".repeat(5 - recipe.rating)}</span>
+          </p>
+        )
+      ) : (
+        <RecipeRating recipeId={recipe.id} initialRating={recipe.rating} />
+      )}
+
+      {readOnly ? (
+        recipe.photoDataUrl && (
+          // eslint-disable-next-line @next/next/no-img-element
+          <img
+            src={recipe.photoDataUrl}
+            alt=""
+            className="w-full rounded-lg object-cover"
+          />
+        )
+      ) : (
+        <RecipePhotoForm
+          photoDataUrl={recipe.photoDataUrl}
+          onUpload={setRecipePhoto.bind(null, recipe.id)}
+          onRemove={removeRecipePhoto.bind(null, recipe.id)}
+        />
+      )}
+
+      {readOnly ? (
+        recipe.sourceName && (
+          <div>
+            <h2 className="font-heading text-2xl font-semibold">Source</h2>
+            {recipeSourceLink ? (
+              <SourceLink sourceName={recipe.sourceName} />
+            ) : (
+              <p className="mt-1 text-lg text-foreground/80">
+                {recipe.sourceName}
+                {recipe.sourcePage && `, p. ${recipe.sourcePage}`}
+              </p>
+            )}
+          </div>
+        )
+      ) : (
+        <div>
+          <h2 className="font-heading text-2xl font-semibold">Source</h2>
+          <div className="mt-2">
+            <RecipeSourceForm
+              action={updateRecipeSource.bind(null, recipe.id)}
+              defaultName={recipe.sourceName}
+              defaultPage={recipe.sourcePage}
+            />
+          </div>
+          <SourceLink sourceName={recipe.sourceName} />
+        </div>
+      )}
 
       {recipe.instructions && (
         <div>
@@ -231,43 +279,74 @@ export default async function RecipePage({
         </div>
       )}
 
-      <div>
-        <h2 className="font-heading text-2xl font-semibold">Notes</h2>
-        <RecipeNotesForm
-          action={updateRecipeNotes.bind(null, recipe.id)}
-          defaultValue={recipe.notes}
-        />
-        <p className="mt-1 text-sm text-foreground/50">
-          Modifications, substitutions, or what to try next time. Saves when you click away.
-        </p>
-      </div>
+      {readOnly
+        ? recipe.notes && (
+            <div>
+              <h2 className="font-heading text-2xl font-semibold">Notes</h2>
+              <p className="mt-2 whitespace-pre-wrap text-lg text-foreground/80">
+                {recipe.notes}
+              </p>
+            </div>
+          )
+        : (
+          <div>
+            <h2 className="font-heading text-2xl font-semibold">Notes</h2>
+            <RecipeNotesForm
+              action={updateRecipeNotes.bind(null, recipe.id)}
+              defaultValue={recipe.notes}
+            />
+            <p className="mt-1 text-sm text-foreground/50">
+              Modifications, substitutions, or what to try next time. Saves when you click away.
+            </p>
+          </div>
+        )}
 
       <div>
         <h2 className="font-heading text-2xl font-semibold">Ingredients</h2>
-        <form
-          action={addIngredientsToShoppingList.bind(null, recipe.name)}
-          className="mt-4 flex flex-col gap-3"
-        >
-          <RecipeIngredientsList recipeId={recipe.id} ingredients={recipe.ingredients} />
-          {recipe.ingredients.length > 0 && (
-            <button
-              type="submit"
-              className="self-start rounded-full bg-primary px-5 py-2 text-base font-medium text-white hover:opacity-90"
-            >
-              Add checked items to shopping list
-            </button>
-          )}
-        </form>
+        {readOnly ? (
+          recipe.ingredients.length === 0 ? (
+            <p className="mt-2 text-base text-foreground/60">No ingredients listed.</p>
+          ) : (
+            <ul className="mt-2 flex flex-col gap-1">
+              {recipe.ingredients.map((ingredient) => (
+                <li key={ingredient.id} className="text-lg text-foreground/80">
+                  {ingredient.name}
+                </li>
+              ))}
+            </ul>
+          )
+        ) : (
+          <form
+            action={addIngredientsToShoppingList.bind(null, recipe.name)}
+            className="mt-4 flex flex-col gap-3"
+          >
+            <RecipeIngredientsList recipeId={recipe.id} ingredients={recipe.ingredients} />
+            {recipe.ingredients.length > 0 && (
+              <button
+                type="submit"
+                className="self-start rounded-full bg-primary px-5 py-2 text-base font-medium text-white hover:opacity-90"
+              >
+                Add checked items to shopping list
+              </button>
+            )}
+          </form>
+        )}
       </div>
 
       <div>
-        <h2 className="font-heading text-2xl font-semibold">Plan this meal</h2>
-        <PlanMealForm recipeId={recipe.id} recipeName={recipe.name} defaultDate={defaultDate} />
-        <p className="mt-2 text-sm text-foreground/50">
-          {hasCalendarSync
-            ? `Adds a "Meal: ${recipe.name}" (or "Side: ${recipe.name}" if checked) event at 5:00 PM on the family calendar.`
-            : "Adds this to your meal plan for that date."}
-        </p>
+        <h2 className="font-heading text-2xl font-semibold">
+          {readOnly ? "Planned" : "Plan this meal"}
+        </h2>
+        {!readOnly && (
+          <>
+            <PlanMealForm recipeId={recipe.id} recipeName={recipe.name} defaultDate={defaultDate} />
+            <p className="mt-2 text-sm text-foreground/50">
+              {hasCalendarSync
+                ? `Adds a "Meal: ${recipe.name}" (or "Side: ${recipe.name}" if checked) event at 5:00 PM on the family calendar.`
+                : "Adds this to your meal plan for that date."}
+            </p>
+          </>
+        )}
 
         {recipe.plannedDates.length > 0 && (
           <ul className="mt-4 flex flex-col gap-2">
@@ -277,21 +356,23 @@ export default async function RecipePage({
                 className="flex items-center justify-between gap-3 rounded-lg border border-foreground/10 px-4 py-3"
               >
                 <p className="text-lg">{formatDate(planned.date)}</p>
-                <form
-                  action={deleteMealPlanEntry.bind(
-                    null,
-                    planned.entryId,
-                    planned.calendarEventId,
-                    recipe.id,
-                  )}
-                >
-                  <button
-                    type="submit"
-                    className="text-base text-red-600 underline hover:text-red-700 dark:text-red-400"
+                {!readOnly && (
+                  <form
+                    action={deleteMealPlanEntry.bind(
+                      null,
+                      planned.entryId,
+                      planned.calendarEventId,
+                      recipe.id,
+                    )}
                   >
-                    Delete
-                  </button>
-                </form>
+                    <button
+                      type="submit"
+                      className="text-base text-red-600 underline hover:text-red-700 dark:text-red-400"
+                    >
+                      Delete
+                    </button>
+                  </form>
+                )}
               </li>
             ))}
           </ul>

@@ -1,6 +1,7 @@
 import Link from "next/link";
-import { auth, signIn, signOut } from "@/auth";
+import { signIn, signOut } from "@/auth";
 import { addDaysToDateStr, getWeekStart, getZonedParts } from "@/lib/google";
+import { getEffectiveOwner } from "@/lib/user";
 import { getWeeklyMealPlan } from "./data";
 import { deleteMealPlanEntry, toggleMealSide } from "./actions";
 import { EnsureTimeZone } from "./EnsureTimeZone";
@@ -35,9 +36,9 @@ export default async function MealsPage({
 }: {
   searchParams: Promise<{ start?: string; tz?: string }>;
 }) {
-  const session = await auth();
+  const effective = await getEffectiveOwner();
 
-  if (!session?.appUserId) {
+  if (!effective) {
     return (
       <div className="flex flex-1 flex-col items-center justify-center gap-4 bg-background p-8 text-center">
         <p className="text-foreground/60">Sign in with Google to plan meals.</p>
@@ -61,7 +62,7 @@ export default async function MealsPage({
     );
   }
 
-  const userId = session.appUserId;
+  const { userId, readOnly } = effective;
   const params = await searchParams;
 
   if (!params.tz) {
@@ -148,12 +149,16 @@ export default async function MealsPage({
 
                 <div className="min-w-0 flex-1 self-center">
                   {day.meals.length === 0 ? (
-                    <Link
-                      href={`/recipes?planDate=${day.dateStr}`}
-                      className="text-lg text-foreground/60 underline"
-                    >
-                      Nothing planned
-                    </Link>
+                    readOnly ? (
+                      <p className="text-lg text-foreground/60">Nothing planned</p>
+                    ) : (
+                      <Link
+                        href={`/recipes?planDate=${day.dateStr}`}
+                        className="text-lg text-foreground/60 underline"
+                      >
+                        Nothing planned
+                      </Link>
+                    )
                   ) : (
                     <ul className="flex flex-col gap-2">
                       {day.meals.map((meal) => (
@@ -172,7 +177,7 @@ export default async function MealsPage({
                               <p className="truncate text-xl font-medium">{meal.recipeName}</p>
                             )}
                           </div>
-                          {meal.recipeId !== null && (
+                          {!readOnly && meal.recipeId !== null && (
                             <Link
                               href={`/meals/${meal.entryId}/made`}
                               className="shrink-0 rounded-full border border-foreground/10 px-2 py-0.5 text-sm text-foreground/60 hover:border-foreground/20"
@@ -180,34 +185,44 @@ export default async function MealsPage({
                               Made it
                             </Link>
                           )}
-                          <form action={toggleMealSide.bind(null, meal.entryId)}>
-                            <input type="hidden" name="timeZone" value={timeZone} />
-                            <button
-                              type="submit"
-                              className={`shrink-0 rounded-full border px-2 py-0.5 text-sm ${
-                                meal.isSide
-                                  ? "border-secondary text-secondary"
-                                  : "border-foreground/10 text-foreground/40 hover:border-foreground/20"
-                              }`}
-                            >
-                              Side
-                            </button>
-                          </form>
-                          <form
-                            action={deleteMealPlanEntry.bind(
-                              null,
-                              meal.entryId,
-                              meal.calendarEventId,
-                              meal.recipeId,
-                            )}
-                          >
-                            <button
-                              type="submit"
-                              className="text-base text-red-600 underline hover:text-red-700 dark:text-red-400"
-                            >
-                              Delete
-                            </button>
-                          </form>
+                          {readOnly ? (
+                            meal.isSide && (
+                              <span className="shrink-0 rounded-full border border-secondary px-2 py-0.5 text-sm text-secondary">
+                                Side
+                              </span>
+                            )
+                          ) : (
+                            <>
+                              <form action={toggleMealSide.bind(null, meal.entryId)}>
+                                <input type="hidden" name="timeZone" value={timeZone} />
+                                <button
+                                  type="submit"
+                                  className={`shrink-0 rounded-full border px-2 py-0.5 text-sm ${
+                                    meal.isSide
+                                      ? "border-secondary text-secondary"
+                                      : "border-foreground/10 text-foreground/40 hover:border-foreground/20"
+                                  }`}
+                                >
+                                  Side
+                                </button>
+                              </form>
+                              <form
+                                action={deleteMealPlanEntry.bind(
+                                  null,
+                                  meal.entryId,
+                                  meal.calendarEventId,
+                                  meal.recipeId,
+                                )}
+                              >
+                                <button
+                                  type="submit"
+                                  className="text-base text-red-600 underline hover:text-red-700 dark:text-red-400"
+                                >
+                                  Delete
+                                </button>
+                              </form>
+                            </>
+                          )}
                         </li>
                       ))}
                     </ul>
@@ -218,7 +233,7 @@ export default async function MealsPage({
           })}
         </div>
 
-        <QuickMealForm today={today} />
+        {!readOnly && <QuickMealForm today={today} />}
       </div>
     </div>
   );

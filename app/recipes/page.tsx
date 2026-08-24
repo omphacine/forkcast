@@ -1,5 +1,6 @@
 import Link from "next/link";
-import { auth, signIn, signOut } from "@/auth";
+import { signIn, signOut } from "@/auth";
+import { getEffectiveOwner } from "@/lib/user";
 import { getRecipes, type Recipe } from "./data";
 import {
   toggleRecipeFavorite,
@@ -20,7 +21,15 @@ function groupBy(recipes: Recipe[], getKey: (recipe: Recipe) => string | null) {
   return Array.from(groups.entries());
 }
 
-function RecipeRow({ recipe, planDate }: { recipe: Recipe; planDate?: string }) {
+function RecipeRow({
+  recipe,
+  planDate,
+  readOnly,
+}: {
+  recipe: Recipe;
+  planDate?: string;
+  readOnly: boolean;
+}) {
   const href = planDate ? `/recipes/${recipe.id}?planDate=${planDate}` : `/recipes/${recipe.id}`;
   return (
     <li className="flex flex-wrap items-center gap-3 rounded-lg border border-foreground/10 px-4 py-3 hover:border-primary">
@@ -42,29 +51,43 @@ function RecipeRow({ recipe, planDate }: { recipe: Recipe; planDate?: string }) 
         )}
       </Link>
       <div className="flex flex-wrap items-center gap-3">
-        <form action={toggleRecipeFavorite.bind(null, recipe.id)}>
-          <button
-            type="submit"
-            aria-label={recipe.favorite ? "Unfavorite recipe" : "Favorite recipe"}
-            className={`text-2xl leading-none ${
-              recipe.favorite ? "text-primary" : "text-foreground/25 hover:text-foreground/50"
-            }`}
-          >
-            {recipe.favorite ? "★" : "☆"}
-          </button>
-        </form>
-        <RecipeCategoryForm
-          action={updateRecipeMainIngredient.bind(null, recipe.id)}
-          defaultValue={recipe.mainIngredient}
-          fieldName="mainIngredient"
-          placeholder="Main ingredient"
-        />
-        <RecipeCategoryForm
-          action={updateRecipeCookingMethod.bind(null, recipe.id)}
-          defaultValue={recipe.cookingMethod}
-          fieldName="cookingMethod"
-          placeholder="Cooking method"
-        />
+        {readOnly ? (
+          <>
+            {recipe.favorite && <span className="text-2xl leading-none text-primary">★</span>}
+            {recipe.mainIngredient && (
+              <span className="text-base text-foreground/60">{recipe.mainIngredient}</span>
+            )}
+            {recipe.cookingMethod && (
+              <span className="text-base text-foreground/60">{recipe.cookingMethod}</span>
+            )}
+          </>
+        ) : (
+          <>
+            <form action={toggleRecipeFavorite.bind(null, recipe.id)}>
+              <button
+                type="submit"
+                aria-label={recipe.favorite ? "Unfavorite recipe" : "Favorite recipe"}
+                className={`text-2xl leading-none ${
+                  recipe.favorite ? "text-primary" : "text-foreground/25 hover:text-foreground/50"
+                }`}
+              >
+                {recipe.favorite ? "★" : "☆"}
+              </button>
+            </form>
+            <RecipeCategoryForm
+              action={updateRecipeMainIngredient.bind(null, recipe.id)}
+              defaultValue={recipe.mainIngredient}
+              fieldName="mainIngredient"
+              placeholder="Main ingredient"
+            />
+            <RecipeCategoryForm
+              action={updateRecipeCookingMethod.bind(null, recipe.id)}
+              defaultValue={recipe.cookingMethod}
+              fieldName="cookingMethod"
+              placeholder="Cooking method"
+            />
+          </>
+        )}
       </div>
     </li>
   );
@@ -75,9 +98,9 @@ export default async function RecipesPage({
 }: {
   searchParams: Promise<{ planDate?: string }>;
 }) {
-  const session = await auth();
+  const effective = await getEffectiveOwner();
 
-  if (!session?.appUserId) {
+  if (!effective) {
     return (
       <div className="flex flex-1 flex-col items-center justify-center gap-4 bg-background p-8 text-center">
         <p className="text-foreground/60">Sign in with Google to see your recipes.</p>
@@ -101,7 +124,8 @@ export default async function RecipesPage({
     );
   }
 
-  const recipes = await getRecipes(session.appUserId);
+  const { userId, readOnly } = effective;
+  const recipes = await getRecipes(userId);
   const byMainIngredient = groupBy(recipes, (recipe) => recipe.mainIngredient);
   const byCookingMethod = groupBy(recipes, (recipe) => recipe.cookingMethod);
   const favorites = recipes.filter((recipe) => recipe.favorite);
@@ -131,12 +155,14 @@ export default async function RecipesPage({
       <div className="flex items-center justify-between gap-4">
         <h1 className="font-heading text-4xl font-semibold">Recipes</h1>
         <div className="flex shrink-0 items-center gap-3">
-          <Link
-            href="/recipes/add"
-            className="rounded-full bg-primary px-4 py-2 text-base font-medium text-white hover:opacity-90"
-          >
-            Add a Recipe
-          </Link>
+          {!readOnly && (
+            <Link
+              href="/recipes/add"
+              className="rounded-full bg-primary px-4 py-2 text-base font-medium text-white hover:opacity-90"
+            >
+              Add a Recipe
+            </Link>
+          )}
           <Link
             href="/meals"
             className="rounded-full border border-foreground/10 px-4 py-2 text-base hover:bg-foreground/5"
@@ -151,7 +177,7 @@ export default async function RecipesPage({
           <h2 className="font-heading text-2xl font-semibold">Favorites</h2>
           <ul className="mt-4 flex flex-col gap-3">
             {favorites.map((recipe) => (
-              <RecipeRow key={recipe.id} recipe={recipe} planDate={planDate} />
+              <RecipeRow key={recipe.id} recipe={recipe} planDate={planDate} readOnly={readOnly} />
             ))}
           </ul>
         </div>
@@ -179,7 +205,7 @@ export default async function RecipesPage({
                     </summary>
                     <ul className="mt-2 flex flex-col gap-3">
                       {groupRecipes.map((recipe) => (
-                        <RecipeRow key={recipe.id} recipe={recipe} planDate={planDate} />
+                        <RecipeRow key={recipe.id} recipe={recipe} planDate={planDate} readOnly={readOnly} />
                       ))}
                     </ul>
                   </details>
@@ -203,7 +229,7 @@ export default async function RecipesPage({
                     </summary>
                     <ul className="mt-2 flex flex-col gap-3">
                       {groupRecipes.map((recipe) => (
-                        <RecipeRow key={recipe.id} recipe={recipe} planDate={planDate} />
+                        <RecipeRow key={recipe.id} recipe={recipe} planDate={planDate} readOnly={readOnly} />
                       ))}
                     </ul>
                   </details>

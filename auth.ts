@@ -67,6 +67,14 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
           RETURNING id
         `;
         token.appUserId = rows[0].id as number;
+
+        // If the owner invited this email as a shared viewer, link it to
+        // their new/existing users row now — flips their status from
+        // Pending to Active. No-op if this email was never invited.
+        await sql`
+          UPDATE shared_viewers SET user_id = ${token.appUserId}
+          WHERE email = ${(profile.email as string).toLowerCase()}
+        `;
       }
 
       if (account?.provider === "google") {

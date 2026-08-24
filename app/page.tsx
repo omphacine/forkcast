@@ -1,11 +1,18 @@
 import Image from "next/image";
 import Link from "next/link";
 import { auth, signIn, signOut } from "@/auth";
+import { getEffectiveOwner } from "@/lib/user";
+import { getSharedViewers } from "@/app/sharing/data";
+import { removeSharedViewer } from "@/app/sharing/actions";
+import { AddViewerForm } from "@/app/sharing/AddViewerForm";
 
 export default async function Home() {
   const session = await auth();
   const isOwner = session?.user?.email === process.env.OWNER_EMAIL;
   const hasExtras = Boolean(session?.extrasAccessToken);
+  const effective = session?.appUserId ? await getEffectiveOwner() : null;
+  const isReadOnlyViewer = Boolean(effective?.readOnly);
+  const sharedViewers = isOwner ? await getSharedViewers() : [];
 
   return (
     <div className="flex flex-1 flex-col items-center bg-background px-6 py-16">
@@ -87,17 +94,63 @@ export default async function Home() {
             title="Recipes"
             description="Your recipe library — scan, rate, and organize by ingredient or cooking method."
           />
-          <ModuleCard
-            href="/shopping"
-            title="Shopping List"
-            description="Grouped by store; ingredients from recipes show up here automatically."
-          />
-          <ModuleCard
-            href="/inventory"
-            title="Food Inventory"
-            description="Track what's on hand and where, by category — scan a receipt to add items fast."
-          />
+          {!isReadOnlyViewer && (
+            <>
+              <ModuleCard
+                href="/shopping"
+                title="Shopping List"
+                description="Grouped by store; ingredients from recipes show up here automatically."
+              />
+              <ModuleCard
+                href="/inventory"
+                title="Food Inventory"
+                description="Track what's on hand and where, by category — scan a receipt to add items fast."
+              />
+            </>
+          )}
         </div>
+
+        {isOwner && (
+          <div className="mt-8 rounded-lg border border-foreground/10 p-5">
+            <h2 className="font-heading text-lg font-medium">Shared viewers</h2>
+            <p className="mt-1 text-base text-foreground/60">
+              People you add here can sign in with Google to see your Meal Plan and Recipes,
+              read-only.
+            </p>
+
+            {sharedViewers.length > 0 && (
+              <ul className="mt-4 flex flex-col gap-2">
+                {sharedViewers.map((viewer) => (
+                  <li
+                    key={viewer.id}
+                    className="flex items-center justify-between gap-3 rounded-md border border-foreground/10 px-3 py-2"
+                  >
+                    <span className="min-w-0 flex-1 truncate text-base">{viewer.email}</span>
+                    <span
+                      className={`shrink-0 text-sm ${
+                        viewer.status === "Active" ? "text-secondary" : "text-foreground/50"
+                      }`}
+                    >
+                      {viewer.status}
+                    </span>
+                    <form action={removeSharedViewer.bind(null, viewer.id)}>
+                      <button
+                        type="submit"
+                        className="shrink-0 text-sm text-red-600 underline hover:text-red-700 dark:text-red-400"
+                      >
+                        Remove
+                      </button>
+                    </form>
+                  </li>
+                ))}
+              </ul>
+            )}
+
+            <div className="mt-4">
+              <AddViewerForm />
+            </div>
+          </div>
+        )}
       </div>
     </div>
   );
