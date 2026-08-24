@@ -15,27 +15,36 @@ export async function isOwner(): Promise<boolean> {
   return session?.user?.email === process.env.OWNER_EMAIL;
 }
 
-// Resolves whose data a signed-in caller should see: the owner sees and can
-// edit their own; someone the owner has shared access with (see
-// shared_viewers, linked in auth.ts's jwt callback on sign-in) sees the
-// owner's data read-only; anyone else falls back to their own private
-// account, unchanged from today. Returns null if not signed in.
-export async function getEffectiveOwner(): Promise<{ userId: number; readOnly: boolean } | null> {
-  const session = await auth();
-  if (!session?.appUserId || !session.user?.email) return null;
+export type SharedAccess = {
+  ownerUserId: number;
+  ownerEmail: string;
+  canViewMealPlan: boolean;
+  canViewRecipes: boolean;
+};
 
-  if (session.user.email === process.env.OWNER_EMAIL) {
-    return { userId: session.appUserId, readOnly: false };
-  }
+// Tells a page what's ADDITIONALLY available to a signed-in caller beyond
+// their own account — never a substitute for it. The owner has nothing
+// "shared" to them (they own their data outright), so this only ever
+// resolves for someone the owner has invited (see shared_viewers, linked in
+// auth.ts's jwt callback on sign-in). Returns null if there's nothing shared.
+export async function getSharedAccess(): Promise<SharedAccess | null> {
+  const session = await auth();
+  if (!session?.user?.email || session.user.email === process.env.OWNER_EMAIL) return null;
 
   const [viewer] = await sql`
-    SELECT 1 FROM shared_viewers
+    SELECT can_view_meal_plan AS "canViewMealPlan", can_view_recipes AS "canViewRecipes"
+    FROM shared_viewers
     WHERE email = ${session.user.email.toLowerCase()} AND user_id IS NOT NULL
   `;
-  if (viewer) {
-    const [owner] = await sql`SELECT id FROM users WHERE email = ${process.env.OWNER_EMAIL}`;
-    if (owner) return { userId: owner.id as number, readOnly: true };
-  }
+  if (!viewer) return null;
 
-  return { userId: session.appUserId, readOnly: false };
+  const [owner] = await sql`SELECT id FROM users WHERE email = ${process.env.OWNER_EMAIL}`;
+  if (!owner) return null;
+
+  return {
+    ownerUserId: owner.id as number,
+    ownerEmail: process.env.OWNER_EMAIL!,
+    canViewMealPlan: viewer.canViewMealPlan as boolean,
+    canViewRecipes: viewer.canViewRecipes as boolean,
+  };
 }

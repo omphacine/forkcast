@@ -1,10 +1,9 @@
 import Link from "next/link";
-import { auth, signIn, signOut } from "@/auth";
+import { signOut } from "@/auth";
 import { addDaysToDateStr, getWeekStart, getZonedParts } from "@/lib/google";
-import { getWeeklyMealPlan } from "./data";
-import { deleteMealPlanEntry, toggleMealSide } from "./actions";
+import { getSharedAccess } from "@/lib/user";
+import { getWeeklyMealPlan } from "../data";
 import { EnsureTimeZone } from "./EnsureTimeZone";
-import { QuickMealForm } from "./QuickMealForm";
 
 function dayLabel(dateStr: string) {
   const date = new Date(`${dateStr}T00:00:00`);
@@ -30,30 +29,17 @@ function isToday(dateStr: string, todayStr: string) {
   return dateStr === todayStr;
 }
 
-export default async function MealsPage({
+export default async function SharedMealsPage({
   searchParams,
 }: {
   searchParams: Promise<{ start?: string; tz?: string }>;
 }) {
-  const session = await auth();
+  const access = await getSharedAccess();
 
-  if (!session?.appUserId) {
+  if (!access?.canViewMealPlan) {
     return (
       <div className="flex flex-1 flex-col items-center justify-center gap-4 bg-background p-8 text-center">
-        <p className="text-foreground/60">Sign in with Google to plan meals.</p>
-        <form
-          action={async () => {
-            "use server";
-            await signIn("google", { redirectTo: "/meals" });
-          }}
-        >
-          <button
-            type="submit"
-            className="rounded-full bg-primary px-5 py-3 text-sm font-medium text-white hover:opacity-90"
-          >
-            Sign in with Google
-          </button>
-        </form>
+        <p className="text-foreground/60">No meal plan has been shared with you.</p>
         <Link href="/" className="text-sm text-foreground/60 underline">
           Back home
         </Link>
@@ -61,7 +47,6 @@ export default async function MealsPage({
     );
   }
 
-  const userId = session.appUserId;
   const params = await searchParams;
 
   if (!params.tz) {
@@ -78,11 +63,11 @@ export default async function MealsPage({
     params.start && /^\d{4}-\d{2}-\d{2}$/.test(params.start) ? params.start : today;
   const weekStart = getWeekStart(rawStart);
 
-  const days = await getWeeklyMealPlan(weekStart, userId);
+  const days = await getWeeklyMealPlan(weekStart, access.ownerUserId);
 
-  const prevHref = `/meals?start=${addDaysToDateStr(weekStart, -7)}&tz=${encodeURIComponent(timeZone)}`;
-  const nextHref = `/meals?start=${addDaysToDateStr(weekStart, 7)}&tz=${encodeURIComponent(timeZone)}`;
-  const todayHref = `/meals?start=${today}&tz=${encodeURIComponent(timeZone)}`;
+  const prevHref = `/meals/shared?start=${addDaysToDateStr(weekStart, -7)}&tz=${encodeURIComponent(timeZone)}`;
+  const nextHref = `/meals/shared?start=${addDaysToDateStr(weekStart, 7)}&tz=${encodeURIComponent(timeZone)}`;
+  const todayHref = `/meals/shared?start=${today}&tz=${encodeURIComponent(timeZone)}`;
 
   return (
     <div className="mx-auto flex w-full max-w-2xl flex-1 flex-col gap-8 px-6 py-10">
@@ -103,15 +88,7 @@ export default async function MealsPage({
       </header>
 
       <div>
-        <div className="flex items-center justify-between gap-4">
-          <h1 className="font-heading text-4xl font-semibold">Meal Plan</h1>
-          <Link
-            href="/recipes"
-            className="shrink-0 rounded-full border border-foreground/10 px-4 py-2 text-base hover:bg-foreground/5"
-          >
-            Recipes &rarr;
-          </Link>
-        </div>
+        <h1 className="font-heading text-4xl font-semibold">{access.ownerEmail}&apos;s Meal Plan</h1>
 
         <div className="mt-4 flex items-center justify-between rounded-full border border-foreground/10 px-2 py-1">
           <Link href={prevHref} className="rounded-full px-3 py-2 text-lg hover:bg-foreground/5">
@@ -148,19 +125,11 @@ export default async function MealsPage({
 
                 <div className="min-w-0 flex-1 self-center">
                   {day.meals.length === 0 ? (
-                    <Link
-                      href={`/recipes?planDate=${day.dateStr}`}
-                      className="text-lg text-foreground/60 underline"
-                    >
-                      Nothing planned
-                    </Link>
+                    <p className="text-lg text-foreground/60">Nothing planned</p>
                   ) : (
                     <ul className="flex flex-col gap-2">
                       {day.meals.map((meal) => (
-                        <li
-                          key={meal.entryId}
-                          className="flex items-center justify-between gap-3"
-                        >
+                        <li key={meal.entryId} className="flex items-center justify-between gap-3">
                           <div className="min-w-0 flex-1">
                             {meal.recipeId !== null ? (
                               <Link href={`/recipes/${meal.recipeId}`}>
@@ -172,42 +141,11 @@ export default async function MealsPage({
                               <p className="truncate text-xl font-medium">{meal.recipeName}</p>
                             )}
                           </div>
-                          {meal.recipeId !== null && (
-                            <Link
-                              href={`/meals/${meal.entryId}/made`}
-                              className="shrink-0 rounded-full border border-foreground/10 px-2 py-0.5 text-sm text-foreground/60 hover:border-foreground/20"
-                            >
-                              Made it
-                            </Link>
-                          )}
-                          <form action={toggleMealSide.bind(null, meal.entryId)}>
-                            <input type="hidden" name="timeZone" value={timeZone} />
-                            <button
-                              type="submit"
-                              className={`shrink-0 rounded-full border px-2 py-0.5 text-sm ${
-                                meal.isSide
-                                  ? "border-secondary text-secondary"
-                                  : "border-foreground/10 text-foreground/40 hover:border-foreground/20"
-                              }`}
-                            >
+                          {meal.isSide && (
+                            <span className="shrink-0 rounded-full border border-secondary px-2 py-0.5 text-sm text-secondary">
                               Side
-                            </button>
-                          </form>
-                          <form
-                            action={deleteMealPlanEntry.bind(
-                              null,
-                              meal.entryId,
-                              meal.calendarEventId,
-                              meal.recipeId,
-                            )}
-                          >
-                            <button
-                              type="submit"
-                              className="text-base text-red-600 underline hover:text-red-700 dark:text-red-400"
-                            >
-                              Delete
-                            </button>
-                          </form>
+                            </span>
+                          )}
                         </li>
                       ))}
                     </ul>
@@ -217,8 +155,6 @@ export default async function MealsPage({
             );
           })}
         </div>
-
-        <QuickMealForm today={today} />
       </div>
     </div>
   );

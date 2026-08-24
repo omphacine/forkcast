@@ -6,7 +6,8 @@ import sql from "@/lib/db";
 import strideSql from "@/lib/strideDb";
 import claude from "@/lib/claude";
 import { FAMILY_CALENDAR_ID, eventsUrl, getExtrasAccessToken, googleFetch } from "@/lib/google";
-import { getUserId, isOwner } from "@/lib/user";
+import { getSharedAccess, getUserId, isOwner } from "@/lib/user";
+import { getRecipe } from "./data";
 
 const SCANNABLE_IMAGE_TYPES = new Set([
   "image/jpeg",
@@ -266,6 +267,36 @@ export async function createRecipe(formData: FormData) {
 
   revalidatePath("/recipes");
   redirect("/recipes");
+}
+
+// Copies a recipe someone has shared with the caller into the caller's own
+// library as an independent, fully editable recipe — never trust that the
+// Import button was only shown to someone with real access; re-check here.
+export async function importRecipe(recipeId: number) {
+  const userId = await getUserId();
+  const access = await getSharedAccess();
+  if (!access || !(access.canViewMealPlan || access.canViewRecipes)) {
+    throw new Error("Not shared with you");
+  }
+
+  const source = await getRecipe(recipeId, access.ownerUserId);
+  if (!source) throw new Error("Recipe not found");
+
+  const [{ id: newRecipeId }] = await sql`
+    INSERT INTO recipes (user_id, name, main_ingredient, cooking_method, instructions, source_name, source_page, photo_data_url)
+    VALUES (${userId}, ${source.name}, ${source.mainIngredient}, ${source.cookingMethod}, ${source.instructions}, ${source.sourceName}, ${source.sourcePage}, ${source.photoDataUrl})
+    RETURNING id
+  `;
+
+  for (let i = 0; i < source.ingredients.length; i++) {
+    await sql`
+      INSERT INTO recipe_ingredients (recipe_id, name, position)
+      VALUES (${newRecipeId}, ${source.ingredients[i].name}, ${i})
+    `;
+  }
+
+  revalidatePath("/recipes");
+  redirect(`/recipes/${newRecipeId}`);
 }
 
 export async function updateRecipeName(recipeId: number, formData: FormData) {

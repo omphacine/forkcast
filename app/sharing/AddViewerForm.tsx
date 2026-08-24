@@ -23,7 +23,7 @@ export function AddViewerForm() {
   }
 
   return (
-    <form ref={formRef} onSubmit={handleSubmit} className="flex flex-col gap-3 sm:flex-row">
+    <form ref={formRef} onSubmit={handleSubmit} className="flex flex-col gap-3">
       <input
         name="email"
         type="email"
@@ -31,13 +31,23 @@ export function AddViewerForm() {
         required
         className="min-w-0 flex-1 rounded-md border border-foreground/10 bg-transparent px-3 py-2 text-lg"
       />
-      <button
-        type="submit"
-        disabled={isPending}
-        className="shrink-0 rounded-full bg-primary px-5 py-2 text-base font-medium text-white hover:opacity-90 disabled:opacity-50"
-      >
-        {isPending ? "Adding…" : "Add"}
-      </button>
+      <div className="flex flex-wrap items-center gap-4">
+        <label className="flex items-center gap-2 text-base text-foreground/80">
+          <input type="checkbox" name="mealPlan" defaultChecked className="h-5 w-5" />
+          Meal Plan
+        </label>
+        <label className="flex items-center gap-2 text-base text-foreground/80">
+          <input type="checkbox" name="recipes" defaultChecked className="h-5 w-5" />
+          Recipes
+        </label>
+        <button
+          type="submit"
+          disabled={isPending}
+          className="shrink-0 rounded-full bg-primary px-5 py-2 text-base font-medium text-white hover:opacity-90 disabled:opacity-50"
+        >
+          {isPending ? "Adding…" : "Add"}
+        </button>
+      </div>
     </form>
   );
 }

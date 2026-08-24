@@ -17,9 +17,20 @@ export async function addSharedViewer(formData: FormData): Promise<AddViewerResu
     return { ok: false, reason: "That's your own email." };
   }
 
+  const canViewMealPlan = formData.get("mealPlan") === "on";
+  const canViewRecipes = formData.get("recipes") === "on";
+  if (!canViewMealPlan && !canViewRecipes) {
+    return { ok: false, reason: "Check Meal Plan, Recipes, or both." };
+  }
+
+  // Re-adding an already-invited email updates their permissions — this
+  // doubles as the "edit access" flow, since there's no separate UI for it.
   await sql`
-    INSERT INTO shared_viewers (email) VALUES (${email})
-    ON CONFLICT (email) DO NOTHING
+    INSERT INTO shared_viewers (email, can_view_meal_plan, can_view_recipes)
+    VALUES (${email}, ${canViewMealPlan}, ${canViewRecipes})
+    ON CONFLICT (email) DO UPDATE SET
+      can_view_meal_plan = excluded.can_view_meal_plan,
+      can_view_recipes = excluded.can_view_recipes
   `;
 
   revalidatePath("/");
