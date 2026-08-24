@@ -253,7 +253,9 @@ export default async function RecipePage({
               </button>
             </form>
           </div>
-          <p className="mt-1 text-base text-foreground/60">Shared by {access!.ownerEmail}</p>
+          <p className="mt-1 text-base text-foreground/60">
+            Shared by {access!.ownerDisplayName}
+          </p>
           {sharedRecipe.rating && (
             <p
               className="mt-2 text-2xl text-primary"

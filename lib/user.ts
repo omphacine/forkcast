@@ -18,6 +18,9 @@ export async function isOwner(): Promise<boolean> {
 export type SharedAccess = {
   ownerUserId: number;
   ownerEmail: string;
+  // Real name from the owner's Google profile when known, else falls back to
+  // their email (e.g. before they've signed in again since this was added).
+  ownerDisplayName: string;
   canViewMealPlan: boolean;
   canViewRecipes: boolean;
 };
@@ -38,12 +41,13 @@ export async function getSharedAccess(): Promise<SharedAccess | null> {
   `;
   if (!viewer) return null;
 
-  const [owner] = await sql`SELECT id FROM users WHERE email = ${process.env.OWNER_EMAIL}`;
+  const [owner] = await sql`SELECT id, name FROM users WHERE email = ${process.env.OWNER_EMAIL}`;
   if (!owner) return null;
 
   return {
     ownerUserId: owner.id as number,
     ownerEmail: process.env.OWNER_EMAIL!,
+    ownerDisplayName: (owner.name as string | null) || process.env.OWNER_EMAIL!,
     canViewMealPlan: viewer.canViewMealPlan as boolean,
     canViewRecipes: viewer.canViewRecipes as boolean,
   };

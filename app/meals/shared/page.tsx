@@ -88,7 +88,9 @@ export default async function SharedMealsPage({
       </header>
 
       <div>
-        <h1 className="font-heading text-4xl font-semibold">{access.ownerEmail}&apos;s Meal Plan</h1>
+        <h1 className="font-heading text-4xl font-semibold">
+          {access.ownerDisplayName}&apos;s Meal Plan
+        </h1>
 
         <div className="mt-4 flex items-center justify-between rounded-full border border-foreground/10 px-2 py-1">
           <Link href={prevHref} className="rounded-full px-3 py-2 text-lg hover:bg-foreground/5">

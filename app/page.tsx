@@ -108,7 +108,7 @@ export default async function Home() {
         {sharedAccess && (sharedAccess.canViewMealPlan || sharedAccess.canViewRecipes) && (
           <div className="mt-8 rounded-lg border border-foreground/10 p-5">
             <h2 className="font-heading text-lg font-medium">Shared with you</h2>
-            <p className="mt-1 text-base text-foreground/60">{sharedAccess.ownerEmail}</p>
+            <p className="mt-1 text-base text-foreground/60">{sharedAccess.ownerDisplayName}</p>
             <div className="mt-3 flex flex-wrap gap-3">
               {sharedAccess.canViewMealPlan && (
                 <Link
@@ -146,7 +146,10 @@ export default async function Home() {
                     className="flex flex-wrap items-center justify-between gap-3 rounded-md border border-foreground/10 px-3 py-2"
                   >
                     <div className="min-w-0 flex-1">
-                      <p className="truncate text-base">{viewer.email}</p>
+                      <p className="truncate text-base">{viewer.name ?? viewer.email}</p>
+                      {viewer.name && (
+                        <p className="truncate text-sm text-foreground/50">{viewer.email}</p>
+                      )}
                       <p className="text-sm text-foreground/50">
                         {[
                           viewer.canViewMealPlan && "Meal Plan",

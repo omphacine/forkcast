@@ -61,9 +61,9 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
       // across a second, different-provider sign-in while already signed in.
       if (account && profile?.sub) {
         const rows = await sql`
-          INSERT INTO users (google_sub, email)
-          VALUES (${profile.sub}, ${profile.email as string})
-          ON CONFLICT (google_sub) DO UPDATE SET email = excluded.email
+          INSERT INTO users (google_sub, email, name)
+          VALUES (${profile.sub}, ${profile.email as string}, ${(profile.name as string) ?? null})
+          ON CONFLICT (google_sub) DO UPDATE SET email = excluded.email, name = excluded.name
           RETURNING id
         `;
         token.appUserId = rows[0].id as number;

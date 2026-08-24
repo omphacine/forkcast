@@ -27,7 +27,9 @@ export default async function SharedRecipesPage() {
       </header>
 
       <div>
-        <h1 className="font-heading text-4xl font-semibold">{access.ownerEmail}&apos;s Recipes</h1>
+        <h1 className="font-heading text-4xl font-semibold">
+          {access.ownerDisplayName}&apos;s Recipes
+        </h1>
         <p className="mt-1 text-base text-foreground/60">
           Click a recipe to view it, or import it into your own Recipes.
         </p>
