@@ -159,55 +159,57 @@ export default async function MealsPage({
                       {day.meals.map((meal) => (
                         <li
                           key={meal.entryId}
-                          className="flex items-center justify-between gap-3"
+                          className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between sm:gap-3"
                         >
                           <div className="min-w-0 flex-1">
                             {meal.recipeId !== null ? (
                               <Link href={`/recipes/${meal.recipeId}`}>
-                                <p className="truncate text-xl font-medium text-secondary underline">
+                                <p className="text-xl font-medium text-secondary underline">
                                   {meal.recipeName}
                                 </p>
                               </Link>
                             ) : (
-                              <p className="truncate text-xl font-medium">{meal.recipeName}</p>
+                              <p className="text-xl font-medium">{meal.recipeName}</p>
                             )}
                           </div>
-                          {meal.recipeId !== null && (
-                            <Link
-                              href={`/meals/${meal.entryId}/made`}
-                              className="shrink-0 rounded-full border border-foreground/10 px-2 py-0.5 text-sm text-foreground/60 hover:border-foreground/20"
-                            >
-                              Made it
-                            </Link>
-                          )}
-                          <form action={toggleMealSide.bind(null, meal.entryId)}>
-                            <input type="hidden" name="timeZone" value={timeZone} />
-                            <button
-                              type="submit"
-                              className={`shrink-0 rounded-full border px-2 py-0.5 text-sm ${
-                                meal.isSide
-                                  ? "border-secondary text-secondary"
-                                  : "border-foreground/10 text-foreground/40 hover:border-foreground/20"
-                              }`}
-                            >
-                              Side
-                            </button>
-                          </form>
-                          <form
-                            action={deleteMealPlanEntry.bind(
-                              null,
-                              meal.entryId,
-                              meal.calendarEventId,
-                              meal.recipeId,
+                          <div className="flex flex-wrap items-center gap-3">
+                            {meal.recipeId !== null && (
+                              <Link
+                                href={`/meals/${meal.entryId}/made`}
+                                className="shrink-0 rounded-full border border-foreground/10 px-2 py-0.5 text-sm text-foreground/60 hover:border-foreground/20"
+                              >
+                                Made it
+                              </Link>
                             )}
-                          >
-                            <button
-                              type="submit"
-                              className="text-base text-red-600 underline hover:text-red-700 dark:text-red-400"
+                            <form action={toggleMealSide.bind(null, meal.entryId)}>
+                              <input type="hidden" name="timeZone" value={timeZone} />
+                              <button
+                                type="submit"
+                                className={`shrink-0 rounded-full border px-2 py-0.5 text-sm ${
+                                  meal.isSide
+                                    ? "border-secondary text-secondary"
+                                    : "border-foreground/10 text-foreground/40 hover:border-foreground/20"
+                                }`}
+                              >
+                                Side
+                              </button>
+                            </form>
+                            <form
+                              action={deleteMealPlanEntry.bind(
+                                null,
+                                meal.entryId,
+                                meal.calendarEventId,
+                                meal.recipeId,
+                              )}
                             >
-                              Delete
-                            </button>
-                          </form>
+                              <button
+                                type="submit"
+                                className="text-base text-red-600 underline hover:text-red-700 dark:text-red-400"
+                              >
+                                Delete
+                              </button>
+                            </form>
+                          </div>
                         </li>
                       ))}
                     </ul>
