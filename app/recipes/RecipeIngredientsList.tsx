@@ -1,18 +1,43 @@
 "use client";
 
-import { useRef, useState, useTransition } from "react";
+import {
+  useRef,
+  useState,
+  useTransition,
+  type ButtonHTMLAttributes,
+  type PointerEvent,
+} from "react";
 import {
   addRecipeIngredient,
   deleteRecipeIngredient,
-  moveRecipeIngredient,
+  reorderRecipeIngredients,
   updateRecipeIngredient,
 } from "./actions";
 import type { Ingredient } from "./data";
 
+function GripHandle(props: ButtonHTMLAttributes<HTMLButtonElement>) {
+  return (
+    <button
+      type="button"
+      {...props}
+      className={`shrink-0 touch-none rounded p-2 text-foreground/40 hover:text-foreground/70 active:cursor-grabbing ${props.className ?? ""}`}
+    >
+      <svg width="16" height="16" viewBox="0 0 16 16" fill="none" aria-hidden="true">
+        <circle cx="5" cy="3" r="1.4" fill="currentColor" />
+        <circle cx="11" cy="3" r="1.4" fill="currentColor" />
+        <circle cx="5" cy="8" r="1.4" fill="currentColor" />
+        <circle cx="11" cy="8" r="1.4" fill="currentColor" />
+        <circle cx="5" cy="13" r="1.4" fill="currentColor" />
+        <circle cx="11" cy="13" r="1.4" fill="currentColor" />
+      </svg>
+    </button>
+  );
+}
+
 // Lives inside the "Add checked items to shopping list" <form> in the parent
 // page (the checkboxes need to belong to that form to submit together), so
-// every control in here must avoid its own <form> — forms can't nest. Edits
-// and adds instead call the server actions directly.
+// every control in here must avoid its own <form> — forms can't nest. Edits,
+// adds, and reordering instead call server actions directly.
 export function RecipeIngredientsList({
   recipeId,
   ingredients,
@@ -23,6 +48,70 @@ export function RecipeIngredientsList({
   const [isPending, startTransition] = useTransition();
   const [newName, setNewName] = useState("");
   const newInputRef = useRef<HTMLInputElement>(null);
+
+  // Local working order, so a drag reorders instantly instead of waiting on
+  // a server round-trip. Resyncs whenever the server sends a fresh list
+  // (after an add/remove, or once a reorder has actually saved) — adjusted
+  // during render rather than an effect, per React's guidance for state
+  // derived from a changing prop.
+  const [items, setItems] = useState(ingredients);
+  const [prevIngredients, setPrevIngredients] = useState(ingredients);
+  if (ingredients !== prevIngredients) {
+    setPrevIngredients(ingredients);
+    setItems(ingredients);
+  }
+
+  const draggingId = useRef<number | null>(null);
+  const rowRefs = useRef(new Map<number, HTMLDivElement>());
+  const [draggingState, setDraggingState] = useState<number | null>(null);
+
+  function rowIdAtY(clientY: number): number | null {
+    let closestId: number | null = null;
+    let closestDistance = Infinity;
+    for (const [id, el] of rowRefs.current) {
+      const rect = el.getBoundingClientRect();
+      const midY = rect.top + rect.height / 2;
+      const distance = Math.abs(clientY - midY);
+      if (distance < closestDistance) {
+        closestDistance = distance;
+        closestId = id;
+      }
+    }
+    return closestId;
+  }
+
+  function handlePointerDown(e: PointerEvent<HTMLButtonElement>, id: number) {
+    e.currentTarget.setPointerCapture(e.pointerId);
+    draggingId.current = id;
+    setDraggingState(id);
+  }
+
+  function handlePointerMove(e: PointerEvent<HTMLButtonElement>) {
+    if (draggingId.current === null) return;
+    const overId = rowIdAtY(e.clientY);
+    if (overId === null || overId === draggingId.current) return;
+    setItems((prev) => {
+      const fromIndex = prev.findIndex((i) => i.id === draggingId.current);
+      const toIndex = prev.findIndex((i) => i.id === overId);
+      if (fromIndex === -1 || toIndex === -1) return prev;
+      const next = [...prev];
+      const [moved] = next.splice(fromIndex, 1);
+      next.splice(toIndex, 0, moved);
+      return next;
+    });
+  }
+
+  function handlePointerUp() {
+    if (draggingId.current === null) return;
+    draggingId.current = null;
+    setDraggingState(null);
+    startTransition(() =>
+      reorderRecipeIngredients(
+        recipeId,
+        items.map((i) => i.id),
+      ),
+    );
+  }
 
   function handleAdd() {
     const name = newName.trim();
@@ -38,32 +127,24 @@ export function RecipeIngredientsList({
 
   return (
     <div className="flex flex-col gap-2">
-      {ingredients.map((ingredient, index) => (
-        <div key={ingredient.id} className="flex items-center gap-3">
-          <div className="flex shrink-0 flex-col">
-            <button
-              type="button"
-              onClick={() =>
-                startTransition(() => moveRecipeIngredient(recipeId, ingredient.id, "up"))
-              }
-              disabled={index === 0}
-              aria-label={`Move ${ingredient.name} up`}
-              className="text-sm leading-none text-foreground/40 hover:text-foreground/70 disabled:opacity-20"
-            >
-              &#9650;
-            </button>
-            <button
-              type="button"
-              onClick={() =>
-                startTransition(() => moveRecipeIngredient(recipeId, ingredient.id, "down"))
-              }
-              disabled={index === ingredients.length - 1}
-              aria-label={`Move ${ingredient.name} down`}
-              className="text-sm leading-none text-foreground/40 hover:text-foreground/70 disabled:opacity-20"
-            >
-              &#9660;
-            </button>
-          </div>
+      {items.map((ingredient) => (
+        <div
+          key={ingredient.id}
+          ref={(el) => {
+            if (el) rowRefs.current.set(ingredient.id, el);
+            else rowRefs.current.delete(ingredient.id);
+          }}
+          className={`flex items-center gap-2 rounded-md ${
+            draggingState === ingredient.id ? "bg-foreground/5 opacity-70" : ""
+          }`}
+        >
+          <GripHandle
+            onPointerDown={(e) => handlePointerDown(e, ingredient.id)}
+            onPointerMove={handlePointerMove}
+            onPointerUp={handlePointerUp}
+            onPointerCancel={handlePointerUp}
+            aria-label={`Drag to reorder ${ingredient.name}`}
+          />
           <input
             type="checkbox"
             name="ingredient"

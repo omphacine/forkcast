@@ -490,29 +490,19 @@ export async function updateRecipeIngredient(
   revalidatePath(`/recipes/${recipeId}`);
 }
 
-export async function moveRecipeIngredient(
-  recipeId: number,
-  ingredientId: number,
-  direction: "up" | "down",
-) {
+// Persists a full new ordering after a drag-to-reorder — orderedIds is every
+// ingredient id for this recipe, in its new order.
+export async function reorderRecipeIngredients(recipeId: number, orderedIds: number[]) {
   const userId = await getUserId();
-  const ingredients = (await sql`
-    SELECT id, position FROM recipe_ingredients
-    WHERE recipe_id = ${recipeId}
-      AND recipe_id IN (SELECT id FROM recipes WHERE user_id = ${userId})
-    ORDER BY position ASC, id ASC
-  `) as unknown as { id: number; position: number }[];
+  const [owned] = await sql`SELECT id FROM recipes WHERE id = ${recipeId} AND user_id = ${userId}`;
+  if (!owned) return;
 
-  const index = ingredients.findIndex((i) => i.id === ingredientId);
-  if (index === -1) return;
-  const swapIndex = direction === "up" ? index - 1 : index + 1;
-  if (swapIndex < 0 || swapIndex >= ingredients.length) return;
-
-  const current = ingredients[index];
-  const swapWith = ingredients[swapIndex];
-
-  await sql`UPDATE recipe_ingredients SET position = ${swapWith.position} WHERE id = ${current.id}`;
-  await sql`UPDATE recipe_ingredients SET position = ${current.position} WHERE id = ${swapWith.id}`;
+  for (let i = 0; i < orderedIds.length; i++) {
+    await sql`
+      UPDATE recipe_ingredients SET position = ${i}
+      WHERE id = ${orderedIds[i]} AND recipe_id = ${recipeId}
+    `;
+  }
 
   revalidatePath(`/recipes/${recipeId}`);
 }
