@@ -19,6 +19,7 @@ import { LocationSelect } from "./LocationSelect";
 import { InventoryExpirationForm } from "./InventoryExpirationForm";
 import { ScanReceiptForm } from "./ScanReceiptForm";
 import { EnsureTimeZone } from "./EnsureTimeZone";
+import { ExpandCollapseControls } from "./ExpandCollapseControls";
 
 const UNCATEGORIZED = "Uncategorized";
 
@@ -141,7 +142,13 @@ export default async function InventoryPage({
           <ScanReceiptForm hasGmailImport={hasGmailImport} locations={locations} />
         </div>
 
-        <div className="mt-4 flex flex-col gap-3">
+        {groups.length > 1 && (
+          <div className="mt-4">
+            <ExpandCollapseControls targetId="inventory-categories" />
+          </div>
+        )}
+
+        <div id="inventory-categories" className="mt-4 flex flex-col gap-3">
           {groups.map(([category, categoryItems]) => (
             <details key={category} className="group">
               <summary className="flex cursor-pointer list-none items-center gap-2 font-heading text-xl font-semibold marker:hidden [&::-webkit-details-marker]:hidden">
