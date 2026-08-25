@@ -1,7 +1,12 @@
 "use client";
 
 import { useRef, useState, useTransition } from "react";
-import { addRecipeIngredient, deleteRecipeIngredient, updateRecipeIngredient } from "./actions";
+import {
+  addRecipeIngredient,
+  deleteRecipeIngredient,
+  moveRecipeIngredient,
+  updateRecipeIngredient,
+} from "./actions";
 import type { Ingredient } from "./data";
 
 // Lives inside the "Add checked items to shopping list" <form> in the parent
@@ -33,8 +38,32 @@ export function RecipeIngredientsList({
 
   return (
     <div className="flex flex-col gap-2">
-      {ingredients.map((ingredient) => (
+      {ingredients.map((ingredient, index) => (
         <div key={ingredient.id} className="flex items-center gap-3">
+          <div className="flex shrink-0 flex-col">
+            <button
+              type="button"
+              onClick={() =>
+                startTransition(() => moveRecipeIngredient(recipeId, ingredient.id, "up"))
+              }
+              disabled={index === 0}
+              aria-label={`Move ${ingredient.name} up`}
+              className="text-sm leading-none text-foreground/40 hover:text-foreground/70 disabled:opacity-20"
+            >
+              &#9650;
+            </button>
+            <button
+              type="button"
+              onClick={() =>
+                startTransition(() => moveRecipeIngredient(recipeId, ingredient.id, "down"))
+              }
+              disabled={index === ingredients.length - 1}
+              aria-label={`Move ${ingredient.name} down`}
+              className="text-sm leading-none text-foreground/40 hover:text-foreground/70 disabled:opacity-20"
+            >
+              &#9660;
+            </button>
+          </div>
           <input
             type="checkbox"
             name="ingredient"
