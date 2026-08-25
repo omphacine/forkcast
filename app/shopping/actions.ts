@@ -5,6 +5,19 @@ import sql from "@/lib/db";
 import strideSql from "@/lib/strideDb";
 import { getUserId, isOwner } from "@/lib/user";
 
+// Reusable outside a form submission — other modules (inventory restock,
+// recipe ingredients) call this directly rather than going through a
+// server-action-bound <form>.
+export async function addToShoppingList(name: string, source: string) {
+  if (await isOwner()) {
+    await strideSql`INSERT INTO shopping_items (name, source) VALUES (${name}, ${source})`;
+  } else {
+    const userId = await getUserId();
+    await sql`INSERT INTO shopping_items (user_id, name, source) VALUES (${userId}, ${name}, ${source})`;
+  }
+  revalidatePath("/shopping");
+}
+
 export async function createShoppingItem(formData: FormData) {
   const name = String(formData.get("name") ?? "").trim();
   const store = String(formData.get("store") ?? "").trim() || null;

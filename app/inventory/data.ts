@@ -7,13 +7,14 @@ export type InventoryItem = {
   location: string | null;
   quantity: string | null;
   expirationDate: string | null;
+  restockWhenOut: boolean;
   createdAt: string;
 };
 
 export async function getInventoryItems(userId: number): Promise<InventoryItem[]> {
   const rows = await sql`
     SELECT id, name, category, location, quantity, expiration_date AS "expirationDate",
-      created_at::text AS "createdAt"
+      restock_when_out AS "restockWhenOut", created_at::text AS "createdAt"
     FROM inventory_items
     WHERE user_id = ${userId}
     ORDER BY category IS NULL, category, expiration_date IS NULL, expiration_date, name ASC

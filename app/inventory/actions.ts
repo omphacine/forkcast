@@ -5,6 +5,7 @@ import sql from "@/lib/db";
 import claude from "@/lib/claude";
 import { GMAIL_API_ROOT, getExtrasAccessToken, googleFetch } from "@/lib/google";
 import { getUserId } from "@/lib/user";
+import { addToShoppingList } from "@/app/shopping/actions";
 import { getCategories } from "./data";
 
 const SCHNUCKS_QUERY = 'from:rewards.schnucks.com subject:"Your Schnucks Receipt"';
@@ -26,11 +27,21 @@ export async function createInventoryItem(formData: FormData) {
   const location = String(formData.get("location") ?? "").trim() || null;
   const quantity = String(formData.get("quantity") ?? "").trim() || null;
   const expirationDate = String(formData.get("expirationDate") ?? "").trim() || null;
+  const restockWhenOut = formData.get("restockWhenOut") === "on";
   if (!name) throw new Error("Item name is required");
 
   await sql`
-    INSERT INTO inventory_items (user_id, name, category, location, quantity, expiration_date)
-    VALUES (${userId}, ${name}, ${category}, ${location}, ${quantity}, ${expirationDate})
+    INSERT INTO inventory_items (user_id, name, category, location, quantity, expiration_date, restock_when_out)
+    VALUES (${userId}, ${name}, ${category}, ${location}, ${quantity}, ${expirationDate}, ${restockWhenOut})
+  `;
+  revalidatePath("/inventory");
+}
+
+export async function toggleInventoryItemRestock(itemId: number) {
+  const userId = await getUserId();
+  await sql`
+    UPDATE inventory_items SET restock_when_out = NOT restock_when_out
+    WHERE id = ${itemId} AND user_id = ${userId}
   `;
   revalidatePath("/inventory");
 }
@@ -84,7 +95,13 @@ export async function updateInventoryItemExpiration(itemId: number, formData: Fo
 
 export async function deleteInventoryItem(itemId: number) {
   const userId = await getUserId();
-  await sql`DELETE FROM inventory_items WHERE id = ${itemId} AND user_id = ${userId}`;
+  const [deleted] = await sql`
+    DELETE FROM inventory_items WHERE id = ${itemId} AND user_id = ${userId}
+    RETURNING name, restock_when_out AS "restockWhenOut"
+  `;
+  if (deleted?.restockWhenOut) {
+    await addToShoppingList(deleted.name, "Restock");
+  }
   revalidatePath("/inventory");
 }
 

@@ -5,6 +5,7 @@ import { getInventoryItems, getLocations, type InventoryItem } from "./data";
 import {
   createInventoryItem,
   deleteInventoryItem,
+  toggleInventoryItemRestock,
   updateInventoryItemCategory,
   updateInventoryItemExpiration,
   updateInventoryItemLocation,
@@ -188,6 +189,19 @@ export default async function InventoryPage({
                         action={updateInventoryItemExpiration.bind(null, item.id)}
                         defaultValue={item.expirationDate}
                       />
+                      <form action={toggleInventoryItemRestock.bind(null, item.id)}>
+                        <button
+                          type="submit"
+                          title="Add to shopping list automatically when this runs out"
+                          className={`rounded-full border px-2 py-0.5 text-sm ${
+                            item.restockWhenOut
+                              ? "border-secondary text-secondary"
+                              : "border-foreground/10 text-foreground/40 hover:border-foreground/20"
+                          }`}
+                        >
+                          Restock
+                        </button>
+                      </form>
                       <form action={deleteInventoryItem.bind(null, item.id)}>
                         <button
                           type="submit"
@@ -239,6 +253,10 @@ export default async function InventoryPage({
               type="date"
               className="mt-1 rounded-md border border-foreground/10 bg-transparent px-3 py-2 text-lg text-foreground"
             />
+          </label>
+          <label className="flex shrink-0 items-center gap-2 pb-2 text-base text-foreground/60">
+            <input type="checkbox" name="restockWhenOut" className="h-5 w-5" />
+            Restock when out
           </label>
           <button
             type="submit"

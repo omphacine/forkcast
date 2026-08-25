@@ -10,6 +10,7 @@ import {
   siteUrl,
 } from "@/lib/google";
 import { getUserId } from "@/lib/user";
+import { addToShoppingList } from "@/app/shopping/actions";
 
 export async function planMeal(
   recipeId: number,
@@ -180,7 +181,13 @@ export async function markMealMade(formData: FormData) {
         WHERE id = ${itemId} AND user_id = ${userId}
       `;
     } else {
-      await sql`DELETE FROM inventory_items WHERE id = ${itemId} AND user_id = ${userId}`;
+      const [deleted] = await sql`
+        DELETE FROM inventory_items WHERE id = ${itemId} AND user_id = ${userId}
+        RETURNING name, restock_when_out AS "restockWhenOut"
+      `;
+      if (deleted?.restockWhenOut) {
+        await addToShoppingList(deleted.name, "Restock");
+      }
     }
   }
 
