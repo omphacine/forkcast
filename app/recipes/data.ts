@@ -86,6 +86,35 @@ export async function getRecipes(userId: number): Promise<Recipe[]> {
   return rows as unknown as Recipe[];
 }
 
+export type RecipeWithIngredients = Recipe & { ingredients: Ingredient[] };
+
+// Used by Cook Now to match every recipe's ingredients against inventory —
+// one bulk query for all of a user's recipe_ingredients rather than N+1
+// calls to getRecipeIngredients, grouped in JS (matches this file's existing
+// style of plain multi-query assembly over SQL-side JSON aggregation).
+export async function getRecipesWithIngredients(
+  userId: number,
+): Promise<RecipeWithIngredients[]> {
+  const [recipes, ingredientRows] = await Promise.all([
+    getRecipes(userId),
+    sql`
+      SELECT ri.recipe_id AS "recipeId", ri.id, ri.name
+      FROM recipe_ingredients ri
+      JOIN recipes r ON r.id = ri.recipe_id
+      WHERE r.user_id = ${userId}
+      ORDER BY ri.position ASC, ri.id ASC
+    `,
+  ]);
+
+  const byRecipe = new Map<number, Ingredient[]>();
+  for (const row of ingredientRows as unknown as { recipeId: number; id: number; name: string }[]) {
+    if (!byRecipe.has(row.recipeId)) byRecipe.set(row.recipeId, []);
+    byRecipe.get(row.recipeId)!.push({ id: row.id, name: row.name });
+  }
+
+  return recipes.map((recipe) => ({ ...recipe, ingredients: byRecipe.get(recipe.id) ?? [] }));
+}
+
 export async function getRecipe(
   id: number,
   userId: number,

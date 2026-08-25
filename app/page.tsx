@@ -103,6 +103,11 @@ export default async function Home() {
             title="Food Inventory"
             description="Track what's on hand and where, by category — scan a receipt to add items fast."
           />
+          <ModuleCard
+            href="/cook"
+            title="Cook Now"
+            description="What to make from what you've already got, expiring items first."
+          />
         </div>
 
         {sharedAccess && (sharedAccess.canViewMealPlan || sharedAccess.canViewRecipes) && (

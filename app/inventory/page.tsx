@@ -123,7 +123,15 @@ export default async function InventoryPage({
       </header>
 
       <div>
-        <h1 className="font-heading text-4xl font-semibold">Food Inventory</h1>
+        <div className="flex items-center justify-between gap-4">
+          <h1 className="font-heading text-4xl font-semibold">Food Inventory</h1>
+          <Link
+            href="/cook"
+            className="shrink-0 rounded-full border border-foreground/10 px-4 py-2 text-base hover:bg-foreground/5"
+          >
+            What can I make? &rarr;
+          </Link>
+        </div>
         <p className="mt-1 text-base text-foreground/60">
           What&apos;s on hand, and where — so it gets used before it gets forgotten.
         </p>
