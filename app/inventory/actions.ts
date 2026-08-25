@@ -181,6 +181,15 @@ function categorizeInstruction(categories: string[]) {
   return `Assign each item a category from this household's existing food inventory categories: ${categories.join(", ")}. Pick the closest reasonable match (e.g. cheese/milk/yogurt → Dairy, raw or frozen meat/poultry/fish → Meat, fresh fruit/vegetables → Produce). Only use null if truly nothing fits.`;
 }
 
+// Inventory item names get matched word-for-word against recipe ingredient
+// names (see app/meals/matchIngredients.ts, used by "Made it" and Cook Now) —
+// a name padded with brand/marketing words doesn't just fail to match, it can
+// wrongly match an unrelated ingredient that happens to share one of those
+// words (e.g. "Betty Crocker Super Moist Butter Recipe Yellow Cake Mix"
+// matching a recipe's "butter"). Pare every scanned name down before it ever
+// reaches inventory.
+const NAME_INSTRUCTION = `Name each item by what it actually is for cooking, not how it's printed or branded on the package — strip the brand and marketing language entirely (e.g. "Betty Crocker Super Moist Butter Recipe Yellow Cake Mix" → "Yellow Cake Mix", "Kraft Shredded Mozzarella Cheese" → "Shredded Mozzarella Cheese", "Barilla Angel Hair Pasta" → "Angel Hair Pasta"). Keep only descriptors that actually change what the ingredient is for a recipe (e.g. "whole wheat", "boneless skinless", "unsalted", "low-fat"), never size or marketing ones (e.g. "Family Size", "Super Moist", "Value Pack", "Original").`;
+
 // Manual receipt entry — available to every signed-in user. Upload a photo of a
 // paper receipt, or paste the text of an e-receipt, from any store.
 export async function scanReceiptManual(formData: FormData): Promise<ScanReceiptResult> {
@@ -193,7 +202,9 @@ export async function scanReceiptManual(formData: FormData): Promise<ScanReceipt
 
   const instructions = `Extract only actual food/grocery items purchased for cooking or eating — skip store/cashier/phone info, subtotal, tax, total, payment details, coupon lines not attached to a specific item, rewards points summaries, and marketing footer text. Exclude non-food household items (paper goods, cleaning supplies, toiletries) if any appear.
 
-If the exact same item appears more than once (bought more than once), combine into a single entry and set quantity to the total count purchased as a plain number string (e.g. "3"). Otherwise set quantity to the pack size if shown (e.g. "12 oz"), or null if unclear. Keep item names close to how they're printed.
+If the exact same item appears more than once (bought more than once), combine into a single entry and set quantity to the total count purchased as a plain number string (e.g. "3"). Otherwise set quantity to the pack size if shown (e.g. "12 oz"), or null if unclear.
+
+${NAME_INSTRUCTION}
 
 ${categorizeInstruction(categories)}`;
 
@@ -258,9 +269,11 @@ export async function scanCounterPhoto(formData: FormData): Promise<ScanReceiptR
   const base64 = Buffer.from(await photo.arrayBuffer()).toString("base64");
   const instructions = `This is a photo of grocery/food items sitting out — e.g. on a kitchen counter after shopping — not a receipt. Identify each distinct food item visible in the photo.
 
-For each item, set quantity to the pack size printed on its own packaging if legible (e.g. "16 oz", "1 gallon", "12 count"), or the number of visible units if it's a loose/countable item (e.g. "4" for four apples sitting together), or null if neither is clear. Keep item names concise and recognizable — include the brand if it's visible on the packaging (e.g. "Barilla Angel Hair Pasta", "Bananas").
+For each item, set quantity to the pack size printed on its own packaging if legible (e.g. "16 oz", "1 gallon", "12 count"), or the number of visible units if it's a loose/countable item (e.g. "4" for four apples sitting together), or null if neither is clear.
 
 Ignore any non-food objects that happen to be in frame (utensils, mail, receipts, packaging trash, etc.).
+
+${NAME_INSTRUCTION}
 
 ${categorizeInstruction(categories)}`;
 
@@ -407,7 +420,9 @@ Rewards Points ...
 
 Extract only actual food/grocery items purchased for cooking or eating — skip order number, store, cashier, and phone info, subtotal, tax, total, payment details, coupon lines that aren't attached to a specific item, rewards points summaries, "Healthier Habits" scoring, and marketing footer text. Exclude non-food household items (paper goods, cleaning supplies, toiletries) if any appear.
 
-If the exact same item appears in more than one separate block (bought more than once), combine them into a single entry and set quantity to the total count purchased as a plain number string (e.g. "3"). Otherwise set quantity to the pack size shown in the item name if there is one (e.g. "12 oz"), or null if unclear. Keep item names close to how they're printed (brand + product), but you may drop a redundant pack-size suffix from the name when you've already moved it into quantity.
+If the exact same item appears in more than one separate block (bought more than once), combine them into a single entry and set quantity to the total count purchased as a plain number string (e.g. "3"). Otherwise set quantity to the pack size shown in the item name if there is one (e.g. "12 oz"), or null if unclear — drop that size from the name itself once it's captured in quantity.
+
+${NAME_INSTRUCTION}
 
 ${categorizeInstruction(categories)}
 
