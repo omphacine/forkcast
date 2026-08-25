@@ -13,10 +13,33 @@ type ExpiringMatch = { name: string; daysUntil: number };
 
 type Match = {
   recipe: RecipeWithIngredients;
+  total: number;
   matchedCount: number;
   missing: string[];
   soonestExpiring: ExpiringMatch | null;
 };
+
+// Salt and pepper are assumed to always be on hand — nearly every recipe
+// lists them, and flagging them as "missing" is just noise, never useful.
+// Recognized regardless of quantity/unit/descriptor ("Salt and pepper, to
+// taste", "1/2 tsp kosher salt", "freshly ground black pepper", ...).
+const STAPLE_WORDS = new Set(["salt", "pepper"]);
+const STAPLE_IGNORED_WORDS = new Set([
+  "and", "or", "to", "taste", "a", "an", "the", "of", "plus",
+  "black", "white", "kosher", "sea", "table",
+  "fresh", "freshly", "ground", "cracked", "coarse", "fine", "coarsely", "finely",
+  "pinch", "dash", "tsp", "teaspoon", "teaspoons", "tbsp", "tablespoon", "tablespoons",
+  "cup", "cups", "oz", "ounce", "ounces",
+]);
+
+function isStapleSeasoning(ingredientName: string): boolean {
+  const words = ingredientName
+    .toLowerCase()
+    .replace(/[^a-z]+/g, " ")
+    .split(" ")
+    .filter((w) => w.length > 0 && !STAPLE_IGNORED_WORDS.has(w));
+  return words.length > 0 && words.every((w) => STAPLE_WORDS.has(w));
+}
 
 function daysUntil(dateStr: string, todayStr: string): number {
   const ms =
@@ -36,11 +59,12 @@ function matchRecipe(
   todayStr: string,
 ): Match {
   const itemById = new Map(inventory.map((item) => [item.id, item]));
+  const ingredients = recipe.ingredients.filter((i) => !isStapleSeasoning(i.name));
   let matchedCount = 0;
   const missing: string[] = [];
   let soonestExpiring: ExpiringMatch | null = null;
 
-  for (const ingredient of recipe.ingredients) {
+  for (const ingredient of ingredients) {
     const matchId = findBestInventoryMatch(ingredient.name, inventory);
     if (matchId === null) {
       missing.push(ingredient.name);
@@ -57,7 +81,7 @@ function matchRecipe(
     }
   }
 
-  return { recipe, matchedCount, missing, soonestExpiring };
+  return { recipe, total: ingredients.length, matchedCount, missing, soonestExpiring };
 }
 
 function hasExpiringMatch(
@@ -67,8 +91,7 @@ function hasExpiringMatch(
 }
 
 function MatchCard({ match }: { match: Match }) {
-  const { recipe, matchedCount, missing, soonestExpiring } = match;
-  const total = recipe.ingredients.length;
+  const { recipe, total, matchedCount, missing, soonestExpiring } = match;
 
   return (
     <li className="flex flex-col gap-2 rounded-lg border border-foreground/10 p-4">
@@ -144,7 +167,8 @@ export default async function CookPage() {
 
   const matches = recipes
     .filter((recipe) => recipe.ingredients.length > 0)
-    .map((recipe) => matchRecipe(recipe, inventory, today));
+    .map((recipe) => matchRecipe(recipe, inventory, today))
+    .filter((match) => match.total > 0);
 
   const useItUp = matches
     .filter(hasExpiringMatch)
@@ -153,8 +177,8 @@ export default async function CookPage() {
   const canMake = matches
     .filter((m) => m.matchedCount > 0)
     .sort((a, b) => {
-      const pctA = a.matchedCount / a.recipe.ingredients.length;
-      const pctB = b.matchedCount / b.recipe.ingredients.length;
+      const pctA = a.matchedCount / a.total;
+      const pctB = b.matchedCount / b.total;
       if (pctB !== pctA) return pctB - pctA;
       return a.missing.length - b.missing.length;
     })
