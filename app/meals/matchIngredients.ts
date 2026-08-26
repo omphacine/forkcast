@@ -57,6 +57,7 @@ export function findBestInventoryMatch(
 
   let bestId: number | null = null;
   let bestShared = 0;
+  let bestUnexplained = Infinity;
 
   for (const item of inventoryItems) {
     const itemWords = wordSet(item.name);
@@ -83,10 +84,17 @@ export function findBestInventoryMatch(
 
     if (onlyItem > maxUnexplainedItemWords(shared)) continue;
 
-    // Among qualifying items, prefer the one with the most actual shared
-    // words — the more specific/word-rich match.
-    if (shared > bestShared) {
+    // Among qualifying items, prefer the most shared words first, then —
+    // when that ties — the item that leaves the least unexplained overall.
+    // A bare "Carrots" ingredient ties "Carrots" and "Peas & Carrots" at one
+    // shared word each; without this, whichever happened to be checked
+    // first won arbitrarily. Preferring the smaller leftover picks the
+    // exact match ("Carrots", nothing left over) over the coincidental one
+    // ("Peas & Carrots" still has "peas" unaccounted for).
+    const unexplained = onlyIngredient + onlyItem;
+    if (shared > bestShared || (shared === bestShared && unexplained < bestUnexplained)) {
       bestShared = shared;
+      bestUnexplained = unexplained;
       bestId = item.id;
     }
   }
