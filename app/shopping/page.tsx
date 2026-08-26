@@ -84,41 +84,45 @@ export default async function ShoppingPage() {
                 {storeItems.map((item) => (
                   <li
                     key={item.id}
-                    className="flex items-center gap-3 rounded-lg border border-foreground/10 px-4 py-3"
+                    className="flex flex-col gap-2 rounded-lg border border-foreground/10 px-4 py-3 sm:flex-row sm:items-center sm:gap-3"
                   >
-                    <form action={toggleShoppingItemComplete.bind(null, item.id)}>
-                      <button
-                        type="submit"
-                        aria-label="Mark item purchased"
-                        className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full border-2 text-sm font-bold"
-                        style={{ borderColor: "rgba(128,128,128,0.35)" }}
-                      />
-                    </form>
+                    <div className="flex min-w-0 items-center gap-3 sm:flex-1">
+                      <form action={toggleShoppingItemComplete.bind(null, item.id)}>
+                        <button
+                          type="submit"
+                          aria-label="Mark item purchased"
+                          className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full border-2 text-sm font-bold"
+                          style={{ borderColor: "rgba(128,128,128,0.35)" }}
+                        />
+                      </form>
 
-                    <div className="min-w-0 flex-1">
-                      <ShoppingItemNameForm
-                        action={updateShoppingItemName.bind(null, item.id)}
-                        defaultValue={item.name}
-                        strikethrough={false}
-                      />
-                      {item.source && (
-                        <p className="text-sm text-foreground/50">From: {item.source}</p>
-                      )}
+                      <div className="min-w-0 flex-1">
+                        <ShoppingItemNameForm
+                          action={updateShoppingItemName.bind(null, item.id)}
+                          defaultValue={item.name}
+                          strikethrough={false}
+                        />
+                        {item.source && (
+                          <p className="text-sm text-foreground/50">From: {item.source}</p>
+                        )}
+                      </div>
                     </div>
 
-                    <ShoppingItemStoreForm
-                      action={updateShoppingItemStore.bind(null, item.id)}
-                      defaultValue={item.store}
-                    />
+                    <div className="flex shrink-0 items-center justify-between gap-3 sm:justify-end">
+                      <ShoppingItemStoreForm
+                        action={updateShoppingItemStore.bind(null, item.id)}
+                        defaultValue={item.store}
+                      />
 
-                    <form action={deleteShoppingItem.bind(null, item.id)}>
-                      <button
-                        type="submit"
-                        className="text-base text-red-600 underline hover:text-red-700 dark:text-red-400"
-                      >
-                        Delete
-                      </button>
-                    </form>
+                      <form action={deleteShoppingItem.bind(null, item.id)}>
+                        <button
+                          type="submit"
+                          className="text-base text-red-600 underline hover:text-red-700 dark:text-red-400"
+                        >
+                          Delete
+                        </button>
+                      </form>
+                    </div>
                   </li>
                 ))}
               </ul>
