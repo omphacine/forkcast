@@ -3,7 +3,7 @@ import { auth, signIn, signOut } from "@/auth";
 import { getRecipesWithIngredients, type RecipeWithIngredients } from "../recipes/data";
 import { getInventoryItems, type InventoryItem } from "../inventory/data";
 import { findBestInventoryMatch } from "../meals/matchIngredients";
-import { addIngredientsToShoppingList } from "../recipes/actions";
+import { AddMissingForm } from "./AddMissingForm";
 
 // How close to expiring an inventory item has to be to surface its recipes
 // under "Use it up".
@@ -139,22 +139,7 @@ function MatchCard({ match }: { match: Match }) {
         </ul>
       </details>
 
-      {missing.length > 0 && (
-        <div className="flex flex-wrap items-center gap-3">
-          <p className="text-sm text-foreground/50">Missing: {missing.join(", ")}</p>
-          <form action={addIngredientsToShoppingList.bind(null, recipe.name)}>
-            {missing.map((name, i) => (
-              <input key={i} type="hidden" name="ingredient" value={name} />
-            ))}
-            <button
-              type="submit"
-              className="rounded-full border border-foreground/10 px-3 py-1 text-sm hover:bg-foreground/5"
-            >
-              Add missing to shopping list
-            </button>
-          </form>
-        </div>
-      )}
+      {missing.length > 0 && <AddMissingForm recipeName={recipe.name} missing={missing} />}
     </li>
   );
 }
