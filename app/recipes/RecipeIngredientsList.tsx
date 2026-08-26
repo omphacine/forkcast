@@ -134,41 +134,43 @@ export function RecipeIngredientsList({
             if (el) rowRefs.current.set(ingredient.id, el);
             else rowRefs.current.delete(ingredient.id);
           }}
-          className={`flex items-center gap-2 rounded-md ${
+          className={`flex flex-col gap-1 rounded-md sm:flex-row sm:items-center sm:gap-2 ${
             draggingState === ingredient.id ? "bg-foreground/5 opacity-70" : ""
           }`}
         >
-          <GripHandle
-            onPointerDown={(e) => handlePointerDown(e, ingredient.id)}
-            onPointerMove={handlePointerMove}
-            onPointerUp={handlePointerUp}
-            onPointerCancel={handlePointerUp}
-            aria-label={`Drag to reorder ${ingredient.name}`}
-          />
-          <input
-            type="checkbox"
-            name="ingredient"
-            value={ingredient.name}
-            aria-label={ingredient.name}
-            className="h-5 w-5 shrink-0"
-          />
-          <input
-            type="text"
-            defaultValue={ingredient.name}
-            onBlur={(e) => {
-              const name = e.target.value.trim();
-              if (!name || name === ingredient.name) return;
-              const formData = new FormData();
-              formData.set("name", name);
-              startTransition(() => updateRecipeIngredient(recipeId, ingredient.id, formData));
-            }}
-            className="min-w-0 flex-1 rounded-md border border-transparent bg-transparent px-1 text-lg hover:border-foreground/10 focus:border-foreground/20 focus:outline-none"
-          />
+          <div className="flex min-w-0 flex-1 items-center gap-2">
+            <GripHandle
+              onPointerDown={(e) => handlePointerDown(e, ingredient.id)}
+              onPointerMove={handlePointerMove}
+              onPointerUp={handlePointerUp}
+              onPointerCancel={handlePointerUp}
+              aria-label={`Drag to reorder ${ingredient.name}`}
+            />
+            <input
+              type="checkbox"
+              name="ingredient"
+              value={ingredient.name}
+              aria-label={ingredient.name}
+              className="h-5 w-5 shrink-0"
+            />
+            <input
+              type="text"
+              defaultValue={ingredient.name}
+              onBlur={(e) => {
+                const name = e.target.value.trim();
+                if (!name || name === ingredient.name) return;
+                const formData = new FormData();
+                formData.set("name", name);
+                startTransition(() => updateRecipeIngredient(recipeId, ingredient.id, formData));
+              }}
+              className="min-w-0 flex-1 rounded-md border border-transparent bg-transparent px-1 text-lg hover:border-foreground/10 focus:border-foreground/20 focus:outline-none"
+            />
+          </div>
           <button
             type="button"
             onClick={() => startTransition(() => deleteRecipeIngredient(recipeId, ingredient.id))}
             aria-label={`Remove ${ingredient.name}`}
-            className="shrink-0 text-base text-red-600 underline hover:text-red-700 dark:text-red-400"
+            className="shrink-0 self-end text-base text-red-600 underline hover:text-red-700 dark:text-red-400 sm:self-auto"
           >
             Remove
           </button>

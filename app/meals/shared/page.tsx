@@ -131,16 +131,19 @@ export default async function SharedMealsPage({
                   ) : (
                     <ul className="flex flex-col gap-2">
                       {day.meals.map((meal) => (
-                        <li key={meal.entryId} className="flex items-center justify-between gap-3">
+                        <li
+                          key={meal.entryId}
+                          className="flex flex-wrap items-center justify-between gap-3"
+                        >
                           <div className="min-w-0 flex-1">
                             {meal.recipeId !== null ? (
                               <Link href={`/recipes/${meal.recipeId}`}>
-                                <p className="truncate text-xl font-medium text-secondary underline">
+                                <p className="text-xl font-medium text-secondary underline">
                                   {meal.recipeName}
                                 </p>
                               </Link>
                             ) : (
-                              <p className="truncate text-xl font-medium">{meal.recipeName}</p>
+                              <p className="text-xl font-medium">{meal.recipeName}</p>
                             )}
                           </div>
                           {meal.isSide && (
