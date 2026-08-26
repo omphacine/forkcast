@@ -11,10 +11,17 @@ const EXPIRING_WINDOW_DAYS = 5;
 
 type ExpiringMatch = { name: string; daysUntil: number };
 
+// Every non-staple ingredient, paired with whichever inventory item it
+// matched (or null if nothing matched) — lets a recipe card show exactly
+// what "on hand" is based on, since the word-overlap matcher can pick a
+// wrong item when the real one isn't in inventory (see matchIngredients.ts).
+type IngredientMatch = { name: string; matchedName: string | null };
+
 type Match = {
   recipe: RecipeWithIngredients;
   total: number;
   matchedCount: number;
+  ingredientMatches: IngredientMatch[];
   missing: string[];
   soonestExpiring: ExpiringMatch | null;
 };
@@ -62,17 +69,20 @@ function matchRecipe(
   const ingredients = recipe.ingredients.filter((i) => !isStapleSeasoning(i.name));
   let matchedCount = 0;
   const missing: string[] = [];
+  const ingredientMatches: IngredientMatch[] = [];
   let soonestExpiring: ExpiringMatch | null = null;
 
   for (const ingredient of ingredients) {
     const matchId = findBestInventoryMatch(ingredient.name, inventory);
     if (matchId === null) {
       missing.push(ingredient.name);
+      ingredientMatches.push({ name: ingredient.name, matchedName: null });
       continue;
     }
     matchedCount++;
 
     const item = itemById.get(matchId);
+    ingredientMatches.push({ name: ingredient.name, matchedName: item?.name ?? null });
     if (!item?.expirationDate) continue;
     const days = daysUntil(item.expirationDate, todayStr);
     if (days < 0 || days > EXPIRING_WINDOW_DAYS) continue;
@@ -81,7 +91,7 @@ function matchRecipe(
     }
   }
 
-  return { recipe, total: ingredients.length, matchedCount, missing, soonestExpiring };
+  return { recipe, total: ingredients.length, matchedCount, ingredientMatches, missing, soonestExpiring };
 }
 
 function hasExpiringMatch(
@@ -91,7 +101,7 @@ function hasExpiringMatch(
 }
 
 function MatchCard({ match }: { match: Match }) {
-  const { recipe, total, matchedCount, missing, soonestExpiring } = match;
+  const { recipe, total, matchedCount, missing, soonestExpiring, ingredientMatches } = match;
 
   return (
     <li className="flex flex-col gap-2 rounded-lg border border-foreground/10 p-4">
@@ -109,6 +119,25 @@ function MatchCard({ match }: { match: Match }) {
           Uses {soonestExpiring.name} — {formatDaysUntil(soonestExpiring.daysUntil)}
         </p>
       )}
+
+      <details className="text-sm">
+        <summary className="cursor-pointer text-foreground/50 hover:text-foreground/70">
+          Show ingredient matches
+        </summary>
+        <ul className="mt-2 flex flex-col gap-1">
+          {ingredientMatches.map((im, i) => (
+            <li key={i} className="flex flex-wrap items-baseline gap-x-2">
+              <span className="text-foreground/80">{im.name}</span>
+              <span className="text-foreground/30">&rarr;</span>
+              {im.matchedName ? (
+                <span className="text-secondary">{im.matchedName}</span>
+              ) : (
+                <span className="italic text-foreground/40">not found</span>
+              )}
+            </li>
+          ))}
+        </ul>
+      </details>
 
       {missing.length > 0 && (
         <div className="flex flex-wrap items-center gap-3">
