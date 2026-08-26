@@ -56,7 +56,17 @@ function containsAll(inner: Set<string>, outer: Set<string>): boolean {
 // longer side, that's not penalized the same way — what matters there is
 // just that every word of the (already pared-down) item name shows up
 // somewhere in the ingredient line.
-const MAX_ITEM_EXTRA_WORDS = 1;
+//
+// The cap scales with how specific the ingredient already is, rather than
+// being a flat number: a 1-word ingredient like "onion" tolerates only 1
+// extra descriptor (so it won't reach into an unrelated multi-word product
+// name), but a 2-word ingredient like "pork sausage" — already naming two
+// real things — reasonably tolerates 2 (so it still finds "Sweet Italian
+// Pork Sausage"). Capped overall so an unusually long ingredient line can't
+// become arbitrarily permissive.
+function maxItemExtraWords(ingredientWordCount: number): number {
+  return Math.min(ingredientWordCount, 3);
+}
 
 export function findBestInventoryMatch(
   ingredientName: string,
@@ -78,7 +88,7 @@ export function findBestInventoryMatch(
     } else {
       matches =
         containsAll(ingredientWords, itemWords) &&
-        itemWords.size - ingredientWords.size <= MAX_ITEM_EXTRA_WORDS;
+        itemWords.size - ingredientWords.size <= maxItemExtraWords(ingredientWords.size);
     }
     if (!matches) continue;
 
