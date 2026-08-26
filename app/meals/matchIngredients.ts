@@ -39,33 +39,13 @@ function wordSet(text: string): Set<string> {
   return new Set(significantWords(text).map(stem));
 }
 
-function containsAll(inner: Set<string>, outer: Set<string>): boolean {
-  for (const w of inner) {
-    if (!outer.has(w)) return false;
-  }
-  return true;
-}
-
-// A short name matching into a much longer, unrelated one is exactly how
-// false positives happen — e.g. a plain "Onion" ingredient line matching a
-// six-word "Condensed French Onion Soup with Beef" inventory item purely
-// because it contains the word "onion". So when the INVENTORY ITEM is the
-// longer side, cap how many extra words it's allowed beyond the ingredient.
-// Recipe ingredient lines are naturally wordy on their own (prep
-// instructions, "for serving", quantities), so when the INGREDIENT is the
-// longer side, that's not penalized the same way — what matters there is
-// just that every word of the (already pared-down) item name shows up
-// somewhere in the ingredient line.
-//
-// The cap scales with how specific the ingredient already is, rather than
-// being a flat number: a 1-word ingredient like "onion" tolerates only 1
-// extra descriptor (so it won't reach into an unrelated multi-word product
-// name), but a 2-word ingredient like "pork sausage" — already naming two
-// real things — reasonably tolerates 2 (so it still finds "Sweet Italian
-// Pork Sausage"). Capped overall so an unusually long ingredient line can't
-// become arbitrarily permissive.
-function maxItemExtraWords(ingredientWordCount: number): number {
-  return Math.min(ingredientWordCount, 3);
+// How many of the inventory item's words can go unexplained by the
+// ingredient line before the match is too loose to trust — scaled by the
+// actual word overlap (not by which side happens to be longer): two real
+// shared words ("italian", "sausage") earns more benefit of the doubt than
+// one. Capped overall so it never becomes unbounded.
+function maxUnexplainedItemWords(sharedWordCount: number): number {
+  return Math.min(sharedWordCount, 3);
 }
 
 export function findBestInventoryMatch(
@@ -76,28 +56,37 @@ export function findBestInventoryMatch(
   if (ingredientWords.size === 0) return null;
 
   let bestId: number | null = null;
-  let bestOverlap = 0;
+  let bestShared = 0;
 
   for (const item of inventoryItems) {
     const itemWords = wordSet(item.name);
     if (itemWords.size === 0) continue;
 
-    let matches: boolean;
-    if (itemWords.size <= ingredientWords.size) {
-      matches = containsAll(itemWords, ingredientWords);
-    } else {
-      matches =
-        containsAll(ingredientWords, itemWords) &&
-        itemWords.size - ingredientWords.size <= maxItemExtraWords(ingredientWords.size);
+    let shared = 0;
+    for (const w of ingredientWords) {
+      if (itemWords.has(w)) shared++;
     }
-    if (!matches) continue;
+    if (shared === 0) continue;
 
-    // Among qualifying items, prefer the one with the larger overlap — the
-    // more specific/word-rich match (e.g. an exact "Carrots" over some
-    // unrelated item that merely happens to also contain the word).
-    const overlap = Math.min(itemWords.size, ingredientWords.size);
-    if (overlap > bestOverlap) {
-      bestOverlap = overlap;
+    const onlyIngredient = ingredientWords.size - shared;
+    const onlyItem = itemWords.size - shared;
+
+    // A single shared word is only trustworthy on its own when at least one
+    // side is ENTIRELY that word — otherwise it's just a coincidence (e.g.
+    // "coconut milk" and "Whole Milk" share only "milk", but "coconut" and
+    // "whole" are both real, unexplained qualifiers on either side, and the
+    // two are different products). "milk" alone matching "Whole Milk" is
+    // fine (nothing left unexplained on the ingredient's side); "Carrots"
+    // matching a "carrots" ingredient over "Peas & Carrots" is fine for the
+    // same reason (nothing left unexplained on the item's side).
+    if (shared === 1 && onlyIngredient > 0 && onlyItem > 0) continue;
+
+    if (onlyItem > maxUnexplainedItemWords(shared)) continue;
+
+    // Among qualifying items, prefer the one with the most actual shared
+    // words — the more specific/word-rich match.
+    if (shared > bestShared) {
+      bestShared = shared;
       bestId = item.id;
     }
   }
