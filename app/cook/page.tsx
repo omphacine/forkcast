@@ -105,9 +105,9 @@ function MatchCard({ match }: { match: Match }) {
 
   return (
     <li className="flex flex-col gap-2 rounded-lg border border-foreground/10 p-4">
-      <div className="flex items-center justify-between gap-3">
+      <div className="flex flex-wrap items-center justify-between gap-3">
         <Link href={`/recipes/${recipe.id}`} className="min-w-0 flex-1">
-          <p className="truncate text-lg font-medium text-secondary underline">{recipe.name}</p>
+          <p className="text-lg font-medium text-secondary underline">{recipe.name}</p>
         </Link>
         <span className="shrink-0 rounded-full bg-foreground/5 px-2 py-0.5 text-sm text-foreground/60">
           {matchedCount}/{total} on hand

@@ -52,7 +52,7 @@ export default async function SharedRecipesPage() {
                   />
                 )}
                 <Link href={`/recipes/${recipe.id}`} className="min-w-[180px] flex-1">
-                  <p className="truncate text-lg font-medium">{recipe.name}</p>
+                  <p className="text-lg font-medium">{recipe.name}</p>
                   {recipe.rating && (
                     <p
                       className="text-base text-primary"

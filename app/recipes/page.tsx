@@ -33,7 +33,7 @@ function RecipeRow({ recipe, planDate }: { recipe: Recipe; planDate?: string }) 
         />
       )}
       <Link href={href} className="min-w-[180px] flex-1">
-        <p className="truncate text-lg font-medium">{recipe.name}</p>
+        <p className="text-lg font-medium">{recipe.name}</p>
         {recipe.rating && (
           <p className="text-base text-primary" aria-label={`${recipe.rating} out of 5 stars`}>
             {"★".repeat(recipe.rating)}
