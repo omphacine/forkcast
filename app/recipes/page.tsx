@@ -40,6 +40,33 @@ function groupByMealType(recipes: Recipe[]) {
   return ordered;
 }
 
+// Simpler than RecipeRow — just enough to recognize a recipe at a glance,
+// since Favorites is meant as a quick-glance list, not a place to edit
+// categories (that's what the All Recipes list below is for).
+function FavoriteRow({ recipe, planDate }: { recipe: Recipe; planDate?: string }) {
+  const href = planDate ? `/recipes/${recipe.id}?planDate=${planDate}` : `/recipes/${recipe.id}`;
+  return (
+    <li className="rounded-lg border border-foreground/10 hover:border-primary">
+      <Link href={href} className="flex items-center gap-3 px-4 py-3">
+        {recipe.photoDataUrl && (
+          // eslint-disable-next-line @next/next/no-img-element
+          <img
+            src={recipe.photoDataUrl}
+            alt=""
+            className="h-12 w-12 shrink-0 rounded-md object-cover"
+          />
+        )}
+        <div className="min-w-0 flex-1">
+          <p className="text-lg font-medium">{recipe.name}</p>
+          {recipe.mealType && (
+            <p className="text-sm text-foreground/60">{recipe.mealType}</p>
+          )}
+        </div>
+      </Link>
+    </li>
+  );
+}
+
 function RecipeRow({ recipe, planDate }: { recipe: Recipe; planDate?: string }) {
   const href = planDate ? `/recipes/${recipe.id}?planDate=${planDate}` : `/recipes/${recipe.id}`;
   return (
@@ -212,7 +239,7 @@ export default async function RecipesPage({
               <h2 className="font-heading text-2xl font-semibold">Favorites</h2>
               <ul className="mt-4 flex flex-col gap-3">
                 {favorites.map((recipe) => (
-                  <RecipeRow key={recipe.id} recipe={recipe} planDate={planDate} />
+                  <FavoriteRow key={recipe.id} recipe={recipe} planDate={planDate} />
                 ))}
               </ul>
             </div>
