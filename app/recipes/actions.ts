@@ -8,6 +8,7 @@ import claude from "@/lib/claude";
 import { FAMILY_CALENDAR_ID, eventsUrl, getExtrasAccessToken, googleFetch } from "@/lib/google";
 import { getSharedAccess, getUserId, isOwner } from "@/lib/user";
 import { getRecipe } from "./data";
+import { isMealType } from "./mealTypes";
 
 const SCANNABLE_IMAGE_TYPES = new Set([
   "image/jpeg",
@@ -241,6 +242,8 @@ export async function createRecipe(formData: FormData) {
   const name = String(formData.get("name") ?? "").trim();
   const mainIngredient = String(formData.get("mainIngredient") ?? "").trim() || null;
   const cookingMethod = String(formData.get("cookingMethod") ?? "").trim() || null;
+  const mealTypeRaw = String(formData.get("mealType") ?? "").trim();
+  const mealType = isMealType(mealTypeRaw) ? mealTypeRaw : null;
   const instructions = String(formData.get("instructions") ?? "").trim() || null;
   const sourceName = String(formData.get("sourceName") ?? "").trim() || null;
   const sourcePage = String(formData.get("sourcePage") ?? "").trim() || null;
@@ -253,8 +256,8 @@ export async function createRecipe(formData: FormData) {
     .filter(Boolean);
 
   const [{ id: recipeId }] = await sql`
-    INSERT INTO recipes (user_id, name, main_ingredient, cooking_method, instructions, source_name, source_page)
-    VALUES (${userId}, ${name}, ${mainIngredient}, ${cookingMethod}, ${instructions}, ${sourceName}, ${sourcePage})
+    INSERT INTO recipes (user_id, name, main_ingredient, cooking_method, meal_type, instructions, source_name, source_page)
+    VALUES (${userId}, ${name}, ${mainIngredient}, ${cookingMethod}, ${mealType}, ${instructions}, ${sourceName}, ${sourcePage})
     RETURNING id
   `;
 
@@ -283,8 +286,8 @@ export async function importRecipe(recipeId: number) {
   if (!source) throw new Error("Recipe not found");
 
   const [{ id: newRecipeId }] = await sql`
-    INSERT INTO recipes (user_id, name, main_ingredient, cooking_method, instructions, source_name, source_page, photo_data_url)
-    VALUES (${userId}, ${source.name}, ${source.mainIngredient}, ${source.cookingMethod}, ${source.instructions}, ${source.sourceName}, ${source.sourcePage}, ${source.photoDataUrl})
+    INSERT INTO recipes (user_id, name, main_ingredient, cooking_method, meal_type, instructions, source_name, source_page, photo_data_url)
+    VALUES (${userId}, ${source.name}, ${source.mainIngredient}, ${source.cookingMethod}, ${source.mealType}, ${source.instructions}, ${source.sourceName}, ${source.sourcePage}, ${source.photoDataUrl})
     RETURNING id
   `;
 
@@ -325,6 +328,17 @@ export async function updateRecipeCookingMethod(recipeId: number, formData: Form
   const cookingMethod = String(formData.get("cookingMethod") ?? "").trim() || null;
   await sql`
     UPDATE recipes SET cooking_method = ${cookingMethod}
+    WHERE id = ${recipeId} AND user_id = ${userId}
+  `;
+  revalidatePath("/recipes");
+}
+
+export async function updateRecipeMealType(recipeId: number, formData: FormData) {
+  const userId = await getUserId();
+  const raw = String(formData.get("mealType") ?? "").trim();
+  const mealType = isMealType(raw) ? raw : null;
+  await sql`
+    UPDATE recipes SET meal_type = ${mealType}
     WHERE id = ${recipeId} AND user_id = ${userId}
   `;
   revalidatePath("/recipes");

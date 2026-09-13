@@ -1,4 +1,5 @@
 import { createRecipe } from "../actions";
+import { MEAL_TYPES } from "../mealTypes";
 
 export function ManualRecipeForm() {
   return (
@@ -9,6 +10,18 @@ export function ManualRecipeForm() {
         required
         className="rounded-md border border-foreground/10 bg-transparent px-3 py-2 text-lg"
       />
+      <select
+        name="mealType"
+        defaultValue=""
+        className="rounded-md border border-foreground/10 bg-transparent px-3 py-2 text-lg"
+      >
+        <option value="">Meal type (optional)</option>
+        {MEAL_TYPES.map((type) => (
+          <option key={type} value={type}>
+            {type}
+          </option>
+        ))}
+      </select>
       <input
         name="mainIngredient"
         placeholder="Main ingredient (optional)"

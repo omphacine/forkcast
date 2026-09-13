@@ -5,6 +5,7 @@ export type Recipe = {
   name: string;
   mainIngredient: string | null;
   cookingMethod: string | null;
+  mealType: string | null;
   favorite: boolean;
   ingredientCount: number;
   rating: number | null;
@@ -28,6 +29,7 @@ export type RecipeWithDetails = {
   name: string;
   mainIngredient: string | null;
   cookingMethod: string | null;
+  mealType: string | null;
   favorite: boolean;
   instructions: string | null;
   notes: string | null;
@@ -65,13 +67,15 @@ export async function getRecipeIngredients(
   return rows as unknown as Ingredient[];
 }
 
-export async function getRecipes(userId: number): Promise<Recipe[]> {
+export async function getRecipes(userId: number, search?: string): Promise<Recipe[]> {
+  const term = search?.trim();
   const rows = await sql`
     SELECT
       r.id,
       r.name,
       r.main_ingredient AS "mainIngredient",
       r.cooking_method AS "cookingMethod",
+      r.meal_type AS "mealType",
       r.favorite,
       r.rating,
       r.photo_data_url AS "photoDataUrl",
@@ -80,6 +84,7 @@ export async function getRecipes(userId: number): Promise<Recipe[]> {
     FROM recipes r
     LEFT JOIN recipe_ingredients ri ON ri.recipe_id = r.id
     WHERE r.user_id = ${userId}
+      AND (${term ?? null}::text IS NULL OR r.name ILIKE '%' || ${term ?? null} || '%')
     GROUP BY r.id
     ORDER BY r.main_ingredient IS NULL, r.main_ingredient, r.name ASC
   `;
@@ -121,6 +126,7 @@ export async function getRecipe(
 ): Promise<RecipeWithDetails | undefined> {
   const recipeRows = await sql`
     SELECT id, name, main_ingredient AS "mainIngredient", cooking_method AS "cookingMethod",
+           meal_type AS "mealType",
            favorite, instructions, notes, rating, photo_data_url AS "photoDataUrl",
            source_name AS "sourceName", source_page AS "sourcePage",
            created_at::text AS "createdAt"
@@ -133,6 +139,7 @@ export async function getRecipe(
         name: string;
         mainIngredient: string | null;
         cookingMethod: string | null;
+        mealType: string | null;
         favorite: boolean;
         instructions: string | null;
         notes: string | null;

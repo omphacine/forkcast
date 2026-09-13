@@ -5,8 +5,11 @@ import {
   toggleRecipeFavorite,
   updateRecipeCookingMethod,
   updateRecipeMainIngredient,
+  updateRecipeMealType,
 } from "./actions";
 import { RecipeCategoryForm } from "./RecipeCategoryForm";
+import { RecipeMealTypeForm } from "./RecipeMealTypeForm";
+import { MEAL_TYPES } from "./mealTypes";
 
 const UNCATEGORIZED = "Uncategorized";
 
@@ -18,6 +21,23 @@ function groupBy(recipes: Recipe[], getKey: (recipe: Recipe) => string | null) {
     groups.get(key)!.push(recipe);
   }
   return Array.from(groups.entries());
+}
+
+// Meal type is a fixed list, so group in that order (not first-seen order
+// like the free-text groupBy above) with Uncategorized always last.
+function groupByMealType(recipes: Recipe[]) {
+  const groups = new Map<string, Recipe[]>();
+  for (const recipe of recipes) {
+    const key = recipe.mealType ?? UNCATEGORIZED;
+    if (!groups.has(key)) groups.set(key, []);
+    groups.get(key)!.push(recipe);
+  }
+  const ordered: [string, Recipe[]][] = [];
+  for (const type of MEAL_TYPES) {
+    if (groups.has(type)) ordered.push([type, groups.get(type)!]);
+  }
+  if (groups.has(UNCATEGORIZED)) ordered.push([UNCATEGORIZED, groups.get(UNCATEGORIZED)!]);
+  return ordered;
 }
 
 function RecipeRow({ recipe, planDate }: { recipe: Recipe; planDate?: string }) {
@@ -53,6 +73,10 @@ function RecipeRow({ recipe, planDate }: { recipe: Recipe; planDate?: string }) 
             {recipe.favorite ? "★" : "☆"}
           </button>
         </form>
+        <RecipeMealTypeForm
+          action={updateRecipeMealType.bind(null, recipe.id)}
+          defaultValue={recipe.mealType}
+        />
         <RecipeCategoryForm
           action={updateRecipeMainIngredient.bind(null, recipe.id)}
           defaultValue={recipe.mainIngredient}
@@ -73,7 +97,7 @@ function RecipeRow({ recipe, planDate }: { recipe: Recipe; planDate?: string }) 
 export default async function RecipesPage({
   searchParams,
 }: {
-  searchParams: Promise<{ planDate?: string }>;
+  searchParams: Promise<{ planDate?: string; q?: string }>;
 }) {
   const session = await auth();
 
@@ -101,14 +125,16 @@ export default async function RecipesPage({
     );
   }
 
-  const recipes = await getRecipes(session.appUserId);
-  const byMainIngredient = groupBy(recipes, (recipe) => recipe.mainIngredient);
-  const byCookingMethod = groupBy(recipes, (recipe) => recipe.cookingMethod);
-  const favorites = recipes.filter((recipe) => recipe.favorite);
-
   const params = await searchParams;
   const planDate =
     params.planDate && /^\d{4}-\d{2}-\d{2}$/.test(params.planDate) ? params.planDate : undefined;
+  const search = params.q?.trim() || undefined;
+
+  const recipes = await getRecipes(session.appUserId, search);
+  const byMealType = groupByMealType(recipes);
+  const byMainIngredient = groupBy(recipes, (recipe) => recipe.mainIngredient);
+  const byCookingMethod = groupBy(recipes, (recipe) => recipe.cookingMethod);
+  const favorites = recipes.filter((recipe) => recipe.favorite);
 
   return (
     <div className="mx-auto flex w-full max-w-2xl flex-1 flex-col gap-8 px-6 py-10">
@@ -146,74 +172,134 @@ export default async function RecipesPage({
         </div>
       </div>
 
-      {favorites.length > 0 && (
-        <div>
-          <h2 className="font-heading text-2xl font-semibold">Favorites</h2>
-          <ul className="mt-4 flex flex-col gap-3">
-            {favorites.map((recipe) => (
-              <RecipeRow key={recipe.id} recipe={recipe} planDate={planDate} />
-            ))}
-          </ul>
-        </div>
-      )}
-
-      <div>
-        <h2 className="font-heading text-2xl font-semibold">All Recipes</h2>
-        {recipes.length === 0 ? (
-          <p className="mt-4 text-base text-foreground/60">No recipes yet.</p>
-        ) : (
-          <div className="mt-4 flex flex-col gap-6">
-            <div>
-              <h3 className="text-lg font-semibold text-foreground/70">By Main Ingredient</h3>
-              <div className="mt-3 flex flex-col gap-3">
-                {byMainIngredient.map(([group, groupRecipes]) => (
-                  <details key={group} className="group">
-                    <summary className="flex cursor-pointer list-none items-center gap-2 font-heading text-xl font-semibold marker:hidden [&::-webkit-details-marker]:hidden">
-                      <span className="text-foreground/40 transition-transform group-open:rotate-90">
-                        &rsaquo;
-                      </span>
-                      {group}
-                      <span className="text-base font-normal text-foreground/40">
-                        ({groupRecipes.length})
-                      </span>
-                    </summary>
-                    <ul className="mt-2 flex flex-col gap-3">
-                      {groupRecipes.map((recipe) => (
-                        <RecipeRow key={recipe.id} recipe={recipe} planDate={planDate} />
-                      ))}
-                    </ul>
-                  </details>
-                ))}
-              </div>
-            </div>
-
-            <div>
-              <h3 className="text-lg font-semibold text-foreground/70">By Cooking Method</h3>
-              <div className="mt-3 flex flex-col gap-3">
-                {byCookingMethod.map(([group, groupRecipes]) => (
-                  <details key={group} className="group">
-                    <summary className="flex cursor-pointer list-none items-center gap-2 font-heading text-xl font-semibold marker:hidden [&::-webkit-details-marker]:hidden">
-                      <span className="text-foreground/40 transition-transform group-open:rotate-90">
-                        &rsaquo;
-                      </span>
-                      {group}
-                      <span className="text-base font-normal text-foreground/40">
-                        ({groupRecipes.length})
-                      </span>
-                    </summary>
-                    <ul className="mt-2 flex flex-col gap-3">
-                      {groupRecipes.map((recipe) => (
-                        <RecipeRow key={recipe.id} recipe={recipe} planDate={planDate} />
-                      ))}
-                    </ul>
-                  </details>
-                ))}
-              </div>
-            </div>
-          </div>
+      <form method="GET" className="flex gap-2">
+        <input
+          type="search"
+          name="q"
+          defaultValue={search ?? ""}
+          placeholder="Search recipes by name"
+          className="w-full rounded-md border border-foreground/10 bg-transparent px-3 py-2 text-base focus:border-foreground/30 focus:outline-none"
+        />
+        {search && (
+          <Link
+            href="/recipes"
+            className="shrink-0 rounded-md border border-foreground/10 px-3 py-2 text-base text-foreground/60 hover:bg-foreground/5"
+          >
+            Clear
+          </Link>
         )}
-      </div>
+      </form>
 
+      {search ? (
+        <div>
+          <h2 className="font-heading text-2xl font-semibold">
+            Results for &ldquo;{search}&rdquo;
+          </h2>
+          {recipes.length === 0 ? (
+            <p className="mt-4 text-base text-foreground/60">No recipes matched.</p>
+          ) : (
+            <ul className="mt-4 flex flex-col gap-3">
+              {recipes.map((recipe) => (
+                <RecipeRow key={recipe.id} recipe={recipe} planDate={planDate} />
+              ))}
+            </ul>
+          )}
+        </div>
+      ) : (
+        <>
+          {favorites.length > 0 && (
+            <div>
+              <h2 className="font-heading text-2xl font-semibold">Favorites</h2>
+              <ul className="mt-4 flex flex-col gap-3">
+                {favorites.map((recipe) => (
+                  <RecipeRow key={recipe.id} recipe={recipe} planDate={planDate} />
+                ))}
+              </ul>
+            </div>
+          )}
+
+          <div>
+            <h2 className="font-heading text-2xl font-semibold">All Recipes</h2>
+            {recipes.length === 0 ? (
+              <p className="mt-4 text-base text-foreground/60">No recipes yet.</p>
+            ) : (
+              <div className="mt-4 flex flex-col gap-6">
+                <div>
+                  <h3 className="text-lg font-semibold text-foreground/70">By Meal Type</h3>
+                  <div className="mt-3 flex flex-col gap-3">
+                    {byMealType.map(([group, groupRecipes]) => (
+                      <details key={group} className="group">
+                        <summary className="flex cursor-pointer list-none items-center gap-2 font-heading text-xl font-semibold marker:hidden [&::-webkit-details-marker]:hidden">
+                          <span className="text-foreground/40 transition-transform group-open:rotate-90">
+                            &rsaquo;
+                          </span>
+                          {group}
+                          <span className="text-base font-normal text-foreground/40">
+                            ({groupRecipes.length})
+                          </span>
+                        </summary>
+                        <ul className="mt-2 flex flex-col gap-3">
+                          {groupRecipes.map((recipe) => (
+                            <RecipeRow key={recipe.id} recipe={recipe} planDate={planDate} />
+                          ))}
+                        </ul>
+                      </details>
+                    ))}
+                  </div>
+                </div>
+
+                <div>
+                  <h3 className="text-lg font-semibold text-foreground/70">By Main Ingredient</h3>
+                  <div className="mt-3 flex flex-col gap-3">
+                    {byMainIngredient.map(([group, groupRecipes]) => (
+                      <details key={group} className="group">
+                        <summary className="flex cursor-pointer list-none items-center gap-2 font-heading text-xl font-semibold marker:hidden [&::-webkit-details-marker]:hidden">
+                          <span className="text-foreground/40 transition-transform group-open:rotate-90">
+                            &rsaquo;
+                          </span>
+                          {group}
+                          <span className="text-base font-normal text-foreground/40">
+                            ({groupRecipes.length})
+                          </span>
+                        </summary>
+                        <ul className="mt-2 flex flex-col gap-3">
+                          {groupRecipes.map((recipe) => (
+                            <RecipeRow key={recipe.id} recipe={recipe} planDate={planDate} />
+                          ))}
+                        </ul>
+                      </details>
+                    ))}
+                  </div>
+                </div>
+
+                <div>
+                  <h3 className="text-lg font-semibold text-foreground/70">By Cooking Method</h3>
+                  <div className="mt-3 flex flex-col gap-3">
+                    {byCookingMethod.map(([group, groupRecipes]) => (
+                      <details key={group} className="group">
+                        <summary className="flex cursor-pointer list-none items-center gap-2 font-heading text-xl font-semibold marker:hidden [&::-webkit-details-marker]:hidden">
+                          <span className="text-foreground/40 transition-transform group-open:rotate-90">
+                            &rsaquo;
+                          </span>
+                          {group}
+                          <span className="text-base font-normal text-foreground/40">
+                            ({groupRecipes.length})
+                          </span>
+                        </summary>
+                        <ul className="mt-2 flex flex-col gap-3">
+                          {groupRecipes.map((recipe) => (
+                            <RecipeRow key={recipe.id} recipe={recipe} planDate={planDate} />
+                          ))}
+                        </ul>
+                      </details>
+                    ))}
+                  </div>
+                </div>
+              </div>
+            )}
+          </div>
+        </>
+      )}
     </div>
   );
 }
