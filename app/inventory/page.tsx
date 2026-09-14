@@ -217,8 +217,11 @@ export default async function InventoryPage({
           <ScanReceiptForm hasGmailImport={hasGmailImport} locations={locations} />
         </div>
 
-        <div className="mt-4">
-          <InventorySearchBox items={itemNames} defaultValue={search ?? ""} tz={params.tz} />
+        <div className="mt-6">
+          <h2 className="text-lg font-semibold text-foreground/70">Search</h2>
+          <div className="mt-2">
+            <InventorySearchBox items={itemNames} defaultValue={search ?? ""} tz={params.tz} />
+          </div>
         </div>
 
         {search ? (
