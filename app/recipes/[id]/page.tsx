@@ -81,10 +81,15 @@ export default async function RecipePage({
 
     return (
       <div className="mx-auto flex w-full max-w-2xl flex-1 flex-col gap-8 px-6 py-10">
-        <header className="flex items-center justify-between">
-          <Link href="/recipes" className="text-base text-foreground/60 underline">
-            &larr; Recipes
-          </Link>
+        <header className="flex flex-wrap items-center justify-between gap-3">
+          <div className="flex flex-wrap items-center gap-3">
+            <Link href="/recipes" className="text-base text-foreground/60 underline">
+              &larr; Recipes
+            </Link>
+            <Link href="/" className="text-base text-foreground/60 underline">
+              Home
+            </Link>
+          </div>
           <form
             action={async () => {
               "use server";
@@ -225,10 +230,15 @@ export default async function RecipePage({
     const sharedSourceLink = sourceUrl(sharedRecipe.sourceName);
     return (
       <div className="mx-auto flex w-full max-w-2xl flex-1 flex-col gap-8 px-6 py-10">
-        <header className="flex items-center justify-between">
-          <Link href="/recipes" className="text-base text-foreground/60 underline">
-            &larr; Recipes
-          </Link>
+        <header className="flex flex-wrap items-center justify-between gap-3">
+          <div className="flex flex-wrap items-center gap-3">
+            <Link href="/recipes" className="text-base text-foreground/60 underline">
+              &larr; Recipes
+            </Link>
+            <Link href="/" className="text-base text-foreground/60 underline">
+              Home
+            </Link>
+          </div>
           <form
             action={async () => {
               "use server";

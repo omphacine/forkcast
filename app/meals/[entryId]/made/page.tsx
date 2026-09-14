@@ -57,10 +57,15 @@ export default async function MadeItPage({
 
   return (
     <div className="mx-auto flex w-full max-w-2xl flex-1 flex-col gap-8 px-6 py-10">
-      <header className="flex items-center justify-between">
-        <Link href="/meals" className="text-base text-foreground/60 underline">
-          &larr; Meal Plan
-        </Link>
+      <header className="flex flex-wrap items-center justify-between gap-3">
+        <div className="flex flex-wrap items-center gap-3">
+          <Link href="/meals" className="text-base text-foreground/60 underline">
+            &larr; Meal Plan
+          </Link>
+          <Link href="/" className="text-base text-foreground/60 underline">
+            Home
+          </Link>
+        </div>
         <form
           action={async () => {
             "use server";
