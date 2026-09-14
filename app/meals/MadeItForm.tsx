@@ -4,10 +4,9 @@ import { useRouter } from "next/navigation";
 import { useState, useTransition, type FormEvent } from "react";
 import { markMealMade } from "./actions";
 import { showToast } from "@/app/showToast";
+import { InventoryItemCombobox, NO_MATCH } from "./InventoryItemCombobox";
 import type { Ingredient } from "../recipes/data";
 import type { InventoryItem } from "../inventory/data";
-
-const NO_MATCH = "none";
 
 function IngredientRow({
   index,
@@ -47,20 +46,12 @@ function IngredientRow({
         <div className="min-w-0 flex-1">
           <p className="text-lg font-medium">{ingredient.name}</p>
           <input type="hidden" name={`included-${index}`} value={included ? "on" : ""} />
-          <select
+          <InventoryItemCombobox
             name={`inventoryItemId-${index}`}
-            value={selectedId}
-            onChange={(e) => handleSelectChange(e.target.value)}
-            className="mt-1 w-full rounded-md border border-foreground/10 bg-transparent px-2 py-1 text-base"
-          >
-            <option value={NO_MATCH}>No matching inventory item</option>
-            {inventoryItems.map((item) => (
-              <option key={item.id} value={item.id}>
-                {item.name}
-                {item.quantity ? ` (${item.quantity})` : ""}
-              </option>
-            ))}
-          </select>
+            items={inventoryItems}
+            selectedId={selectedId}
+            onSelect={handleSelectChange}
+          />
         </div>
       </div>
       {selectedId !== NO_MATCH && (
