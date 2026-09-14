@@ -1,7 +1,7 @@
 import Link from "next/link";
 import { auth, signIn, signOut } from "@/auth";
 import { getZonedParts, getExtrasAccessToken } from "@/lib/google";
-import { getInventoryItems, getLocations, type InventoryItem } from "./data";
+import { getInventoryItemNames, getInventoryItems, getLocations, type InventoryItem } from "./data";
 import {
   createInventoryItem,
   deleteInventoryItem,
@@ -17,6 +17,7 @@ import { InventoryFieldForm } from "./InventoryFieldForm";
 import { InventoryLocationForm } from "./InventoryLocationForm";
 import { LocationSelect } from "./LocationSelect";
 import { InventoryExpirationForm } from "./InventoryExpirationForm";
+import { InventorySearchBox } from "./InventorySearchBox";
 import { ScanReceiptForm } from "./ScanReceiptForm";
 import { EnsureTimeZone } from "./EnsureTimeZone";
 import { ExpandCollapseControls } from "./ExpandCollapseControls";
@@ -55,10 +56,77 @@ function expirationBadge(expirationDate: string | null, today: string) {
   );
 }
 
+function InventoryItemRow({
+  item,
+  today,
+  locations,
+}: {
+  item: InventoryItem;
+  today: string;
+  locations: string[];
+}) {
+  return (
+    <li className="flex flex-wrap items-center gap-3 rounded-lg border border-foreground/10 px-4 py-3">
+      <div className="min-w-[160px] flex-1">
+        <InventoryItemNameForm
+          action={updateInventoryItemName.bind(null, item.id)}
+          defaultValue={item.name}
+        />
+        {expirationBadge(item.expirationDate, today)}
+      </div>
+      <div className="flex flex-wrap items-center gap-3">
+        <InventoryFieldForm
+          action={updateInventoryItemCategory.bind(null, item.id)}
+          defaultValue={item.category}
+          fieldName="category"
+          placeholder="Category"
+        />
+        <InventoryFieldForm
+          action={updateInventoryItemQuantity.bind(null, item.id)}
+          defaultValue={item.quantity}
+          fieldName="quantity"
+          placeholder="Quantity"
+        />
+        <InventoryLocationForm
+          key={item.location ?? ""}
+          action={updateInventoryItemLocation.bind(null, item.id)}
+          defaultValue={item.location}
+          locations={locations}
+        />
+        <InventoryExpirationForm
+          action={updateInventoryItemExpiration.bind(null, item.id)}
+          defaultValue={item.expirationDate}
+        />
+        <form action={toggleInventoryItemRestock.bind(null, item.id)}>
+          <button
+            type="submit"
+            title="Add to shopping list automatically when this runs out"
+            className={`rounded-full border px-2 py-0.5 text-sm ${
+              item.restockWhenOut
+                ? "border-secondary text-secondary"
+                : "border-foreground/10 text-foreground/40 hover:border-foreground/20"
+            }`}
+          >
+            Restock
+          </button>
+        </form>
+        <form action={deleteInventoryItem.bind(null, item.id)}>
+          <button
+            type="submit"
+            className="text-base text-red-600 underline hover:text-red-700 dark:text-red-400"
+          >
+            Delete
+          </button>
+        </form>
+      </div>
+    </li>
+  );
+}
+
 export default async function InventoryPage({
   searchParams,
 }: {
-  searchParams: Promise<{ tz?: string }>;
+  searchParams: Promise<{ tz?: string; q?: string }>;
 }) {
   const session = await auth();
 
@@ -99,8 +167,10 @@ export default async function InventoryPage({
   }
 
   const today = getZonedParts(new Date(), params.tz).dateStr;
-  const [items, locations] = await Promise.all([
-    getInventoryItems(session.appUserId),
+  const search = params.q?.trim() || undefined;
+  const [items, itemNames, locations] = await Promise.all([
+    getInventoryItems(session.appUserId, search),
+    getInventoryItemNames(session.appUserId),
     getLocations(session.appUserId),
   ]);
   const groups = groupByCategory(items);
@@ -147,91 +217,58 @@ export default async function InventoryPage({
           <ScanReceiptForm hasGmailImport={hasGmailImport} locations={locations} />
         </div>
 
-        {groups.length > 1 && (
-          <div className="mt-4">
-            <ExpandCollapseControls targetId="inventory-categories" />
-          </div>
-        )}
+        <div className="mt-4">
+          <InventorySearchBox items={itemNames} defaultValue={search ?? ""} tz={params.tz} />
+        </div>
 
-        <div id="inventory-categories" className="mt-4 flex flex-col gap-3">
-          {groups.map(([category, categoryItems]) => (
-            <details key={category} className="group">
-              <summary className="flex cursor-pointer list-none items-center gap-2 font-heading text-xl font-semibold marker:hidden [&::-webkit-details-marker]:hidden">
-                <span className="text-foreground/40 transition-transform group-open:rotate-90">
-                  &rsaquo;
-                </span>
-                {category}
-                <span className="text-base font-normal text-foreground/40">
-                  ({categoryItems.length})
-                </span>
-              </summary>
-              <ul className="mt-2 flex flex-col gap-3">
-                {categoryItems.map((item) => (
-                  <li
-                    key={item.id}
-                    className="flex flex-wrap items-center gap-3 rounded-lg border border-foreground/10 px-4 py-3"
-                  >
-                    <div className="min-w-[160px] flex-1">
-                      <InventoryItemNameForm
-                        action={updateInventoryItemName.bind(null, item.id)}
-                        defaultValue={item.name}
-                      />
-                      {expirationBadge(item.expirationDate, today)}
-                    </div>
-                    <div className="flex flex-wrap items-center gap-3">
-                      <InventoryFieldForm
-                        action={updateInventoryItemCategory.bind(null, item.id)}
-                        defaultValue={item.category}
-                        fieldName="category"
-                        placeholder="Category"
-                      />
-                      <InventoryFieldForm
-                        action={updateInventoryItemQuantity.bind(null, item.id)}
-                        defaultValue={item.quantity}
-                        fieldName="quantity"
-                        placeholder="Quantity"
-                      />
-                      <InventoryLocationForm
-                        key={item.location ?? ""}
-                        action={updateInventoryItemLocation.bind(null, item.id)}
-                        defaultValue={item.location}
-                        locations={locations}
-                      />
-                      <InventoryExpirationForm
-                        action={updateInventoryItemExpiration.bind(null, item.id)}
-                        defaultValue={item.expirationDate}
-                      />
-                      <form action={toggleInventoryItemRestock.bind(null, item.id)}>
-                        <button
-                          type="submit"
-                          title="Add to shopping list automatically when this runs out"
-                          className={`rounded-full border px-2 py-0.5 text-sm ${
-                            item.restockWhenOut
-                              ? "border-secondary text-secondary"
-                              : "border-foreground/10 text-foreground/40 hover:border-foreground/20"
-                          }`}
-                        >
-                          Restock
-                        </button>
-                      </form>
-                      <form action={deleteInventoryItem.bind(null, item.id)}>
-                        <button
-                          type="submit"
-                          className="text-base text-red-600 underline hover:text-red-700 dark:text-red-400"
-                        >
-                          Delete
-                        </button>
-                      </form>
-                    </div>
-                  </li>
+        {search ? (
+          <div className="mt-4">
+            <h2 className="font-heading text-xl font-semibold">
+              Results for &ldquo;{search}&rdquo;
+            </h2>
+            {items.length === 0 ? (
+              <p className="mt-4 text-base text-foreground/60">No items matched.</p>
+            ) : (
+              <ul className="mt-4 flex flex-col gap-3">
+                {items.map((item) => (
+                  <InventoryItemRow key={item.id} item={item} today={today} locations={locations} />
                 ))}
               </ul>
-            </details>
-          ))}
-          {items.length === 0 && (
-            <p className="text-base text-foreground/60">Nothing in the inventory yet.</p>
-          )}
-        </div>
+            )}
+          </div>
+        ) : (
+          <>
+            {groups.length > 1 && (
+              <div className="mt-4">
+                <ExpandCollapseControls targetId="inventory-categories" />
+              </div>
+            )}
+
+            <div id="inventory-categories" className="mt-4 flex flex-col gap-3">
+              {groups.map(([category, categoryItems]) => (
+                <details key={category} className="group">
+                  <summary className="flex cursor-pointer list-none items-center gap-2 font-heading text-xl font-semibold marker:hidden [&::-webkit-details-marker]:hidden">
+                    <span className="text-foreground/40 transition-transform group-open:rotate-90">
+                      &rsaquo;
+                    </span>
+                    {category}
+                    <span className="text-base font-normal text-foreground/40">
+                      ({categoryItems.length})
+                    </span>
+                  </summary>
+                  <ul className="mt-2 flex flex-col gap-3">
+                    {categoryItems.map((item) => (
+                      <InventoryItemRow key={item.id} item={item} today={today} locations={locations} />
+                    ))}
+                  </ul>
+                </details>
+              ))}
+              {items.length === 0 && (
+                <p className="text-base text-foreground/60">Nothing in the inventory yet.</p>
+              )}
+            </div>
+          </>
+        )}
       </div>
 
       <div>
