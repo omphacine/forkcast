@@ -218,8 +218,8 @@ export default async function InventoryPage({
         </div>
 
         <div className="mt-6">
-          <h2 className="text-lg font-semibold text-foreground/70">Search</h2>
-          <div className="mt-2">
+          <h2 className="font-heading text-2xl font-semibold">Search</h2>
+          <div className="mt-4">
             <InventorySearchBox items={itemNames} defaultValue={search ?? ""} tz={params.tz} />
           </div>
         </div>
