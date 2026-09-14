@@ -67,6 +67,19 @@ export async function getRecipeIngredients(
   return rows as unknown as Ingredient[];
 }
 
+export type RecipeName = { id: number; name: string };
+
+// Lightweight, unfiltered list used to drive client-side type-ahead
+// suggestions in the search box — deliberately separate from getRecipes
+// (which is scoped to the current search term) so suggestions can still
+// be offered from the full recipe box while a search is narrowing the list.
+export async function getRecipeNames(userId: number): Promise<RecipeName[]> {
+  const rows = await sql`
+    SELECT id, name FROM recipes WHERE user_id = ${userId} ORDER BY name ASC
+  `;
+  return rows as unknown as RecipeName[];
+}
+
 export async function getRecipes(userId: number, search?: string): Promise<Recipe[]> {
   const term = search?.trim();
   const rows = await sql`

@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { auth, signIn, signOut } from "@/auth";
-import { getRecipes, type Recipe } from "./data";
+import { getRecipeNames, getRecipes, type Recipe } from "./data";
 import {
   toggleRecipeFavorite,
   updateRecipeCookingMethod,
@@ -9,6 +9,7 @@ import {
 } from "./actions";
 import { RecipeCategoryForm } from "./RecipeCategoryForm";
 import { RecipeMealTypeForm } from "./RecipeMealTypeForm";
+import { RecipeSearchBox } from "./RecipeSearchBox";
 import { MEAL_TYPES } from "./mealTypes";
 
 const UNCATEGORIZED = "Uncategorized";
@@ -157,7 +158,10 @@ export default async function RecipesPage({
     params.planDate && /^\d{4}-\d{2}-\d{2}$/.test(params.planDate) ? params.planDate : undefined;
   const search = params.q?.trim() || undefined;
 
-  const recipes = await getRecipes(session.appUserId, search);
+  const [recipes, recipeNames] = await Promise.all([
+    getRecipes(session.appUserId, search),
+    getRecipeNames(session.appUserId),
+  ]);
   const byMealType = groupByMealType(recipes);
   const byMainIngredient = groupBy(recipes, (recipe) => recipe.mainIngredient);
   const byCookingMethod = groupBy(recipes, (recipe) => recipe.cookingMethod);
@@ -199,23 +203,7 @@ export default async function RecipesPage({
         </div>
       </div>
 
-      <form method="GET" className="flex gap-2">
-        <input
-          type="search"
-          name="q"
-          defaultValue={search ?? ""}
-          placeholder="Search recipes by name"
-          className="w-full rounded-md border border-foreground/10 bg-transparent px-3 py-2 text-base focus:border-foreground/30 focus:outline-none"
-        />
-        {search && (
-          <Link
-            href="/recipes"
-            className="shrink-0 rounded-md border border-foreground/10 px-3 py-2 text-base text-foreground/60 hover:bg-foreground/5"
-          >
-            Clear
-          </Link>
-        )}
-      </form>
+      <RecipeSearchBox recipes={recipeNames} defaultValue={search ?? ""} />
 
       {search ? (
         <div>
