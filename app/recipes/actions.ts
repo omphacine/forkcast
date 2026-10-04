@@ -10,6 +10,8 @@ import { getSharedAccess, getUserId, isOwner } from "@/lib/user";
 import { getRecipe } from "./data";
 import { isMealType } from "./mealTypes";
 
+const OWNER_DEFAULT_STORE = "Schnucks";
+
 const SCANNABLE_IMAGE_TYPES = new Set([
   "image/jpeg",
   "image/png",
@@ -450,8 +452,10 @@ export async function addIngredientsToShoppingList(
 
   for (const ingredient of ingredients) {
     if (owner) {
+      // Owner-only default: the owner shops at Schnucks. Other accounts get
+      // no default store, so this deliberately isn't applied in the else branch.
       await strideSql`
-        INSERT INTO shopping_items (name, source) VALUES (${ingredient}, ${source})
+        INSERT INTO shopping_items (name, store, source) VALUES (${ingredient}, ${OWNER_DEFAULT_STORE}, ${source})
       `;
     } else {
       await sql`
