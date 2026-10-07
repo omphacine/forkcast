@@ -2,11 +2,20 @@ import NextAuth from "next-auth";
 import Google from "next-auth/providers/google";
 import sql from "@/lib/db";
 
-async function refreshGoogleToken(
+type RefreshResult =
+  | { ok: true; accessToken: string; expiresAt: number; refreshToken?: string }
+  // permanent = Google rejected the refresh token itself (expired/revoked), so
+  // retrying is pointless and the user has to reconnect. Anything else
+  // (network blip, 5xx) is transient and worth trying again next request.
+  | { ok: false; permanent: boolean };
+
+const PERMANENT_REFRESH_ERRORS = new Set(["invalid_grant", "invalid_client", "unauthorized_client"]);
+
+async function requestGoogleTokenRefresh(
   refreshToken: string,
   clientId: string,
   clientSecret: string,
-) {
+): Promise<RefreshResult> {
   try {
     const response = await fetch("https://oauth2.googleapis.com/token", {
       method: "POST",
@@ -19,13 +28,41 @@ async function refreshGoogleToken(
       }),
     });
 
-    const refreshed = await response.json();
-    if (!response.ok) throw refreshed;
-    return refreshed as { access_token: string; expires_in: number; refresh_token?: string };
+    const body = await response.json();
+    if (!response.ok) {
+      console.error("Failed to refresh Google extras token", body);
+      return { ok: false, permanent: PERMANENT_REFRESH_ERRORS.has(body?.error) };
+    }
+    return {
+      ok: true,
+      accessToken: body.access_token,
+      expiresAt: Math.floor(Date.now() / 1000 + body.expires_in),
+      refreshToken: body.refresh_token,
+    };
   } catch (error) {
     console.error("Failed to refresh Google extras token", error);
-    return null;
+    return { ok: false, permanent: false };
   }
+}
+
+// auth() runs the jwt callback on every call, and a server render calls it
+// several times — but a refreshed token can't be written back to the cookie
+// from a server component, so without this every one of those calls would
+// hit Google's token endpoint again. Reusing a refresh for 30 minutes (the
+// access token lives 60) keeps that to about one round trip per instance.
+const REFRESH_REUSE_MS = 30 * 60 * 1000;
+const recentRefreshes = new Map<string, { at: number; result: Promise<RefreshResult> }>();
+
+function refreshGoogleToken(refreshToken: string, clientId: string, clientSecret: string) {
+  const cached = recentRefreshes.get(refreshToken);
+  if (cached && Date.now() - cached.at < REFRESH_REUSE_MS) return cached.result;
+
+  const result = requestGoogleTokenRefresh(refreshToken, clientId, clientSecret);
+  recentRefreshes.set(refreshToken, { at: Date.now(), result });
+  void result.then((r) => {
+    if (!r.ok && !r.permanent) recentRefreshes.delete(refreshToken);
+  });
+  return result;
 }
 
 export const { handlers, auth, signIn, signOut } = NextAuth({
@@ -99,13 +136,17 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
           process.env.AUTH_GOOGLE_EXTRAS_ID!,
           process.env.AUTH_GOOGLE_EXTRAS_SECRET!,
         );
-        if (refreshed) {
-          token.extrasAccessToken = refreshed.access_token;
-          token.extrasExpiresAt = Math.floor(Date.now() / 1000 + refreshed.expires_in);
-          if (refreshed.refresh_token) token.extrasRefreshToken = refreshed.refresh_token;
+        if (refreshed.ok) {
+          token.extrasAccessToken = refreshed.accessToken;
+          token.extrasExpiresAt = refreshed.expiresAt;
+          if (refreshed.refreshToken) token.extrasRefreshToken = refreshed.refreshToken;
           delete token.extrasError;
-        } else {
+        } else if (refreshed.permanent) {
+          // Drop the dead access token too — leaving it behind is what made
+          // the app keep reporting "connected" while every Google call failed.
           token.extrasError = "RefreshTokenError";
+          delete token.extrasAccessToken;
+          delete token.extrasExpiresAt;
         }
       }
 

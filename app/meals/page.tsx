@@ -1,8 +1,9 @@
 import Link from "next/link";
 import { auth, signIn, signOut } from "@/auth";
-import { addDaysToDateStr, getWeekStart, getZonedParts } from "@/lib/google";
+import { addDaysToDateStr, extrasStatusOf, getWeekStart, getZonedParts } from "@/lib/google";
 import { getWeeklyMealPlan } from "./data";
 import { deleteMealPlanEntry, toggleMealSide } from "./actions";
+import { CalendarSync } from "./CalendarSync";
 import { EnsureTimeZone } from "./EnsureTimeZone";
 import { QuickMealForm } from "./QuickMealForm";
 
@@ -127,6 +128,19 @@ export default async function MealsPage({
             Next &rsaquo;
           </Link>
         </div>
+
+        {session.user?.email === process.env.OWNER_EMAIL && (
+          <div className="mt-4">
+            <CalendarSync
+              variant="meals"
+              initialStatus={extrasStatusOf(session)}
+              reconnectAction={async () => {
+                "use server";
+                await signIn("google-extras", { redirectTo: "/meals" });
+              }}
+            />
+          </div>
+        )}
 
         <div className="mt-4 flex flex-col gap-3">
           {days.map((day) => {

@@ -1,7 +1,9 @@
 import Image from "next/image";
 import Link from "next/link";
 import { auth, signIn, signOut } from "@/auth";
+import { extrasStatusOf } from "@/lib/google";
 import { getSharedAccess } from "@/lib/user";
+import { CalendarSync } from "@/app/meals/CalendarSync";
 import { getSharedViewers } from "@/app/sharing/data";
 import { removeSharedViewer } from "@/app/sharing/actions";
 import { AddViewerForm } from "@/app/sharing/AddViewerForm";
@@ -9,7 +11,7 @@ import { AddViewerForm } from "@/app/sharing/AddViewerForm";
 export default async function Home() {
   const session = await auth();
   const isOwner = session?.user?.email === process.env.OWNER_EMAIL;
-  const hasExtras = Boolean(session?.extrasAccessToken);
+  const extrasStatus = extrasStatusOf(session);
   const sharedAccess = session?.appUserId ? await getSharedAccess() : null;
   const sharedViewers = isOwner ? await getSharedViewers() : [];
 
@@ -60,26 +62,17 @@ export default async function Home() {
           </form>
         )}
 
-        {isOwner && !hasExtras && (
-          <form
-            action={async () => {
-              "use server";
-              await signIn("google-extras", { redirectTo: "/" });
-            }}
-            className="mt-4"
-          >
-            <button
-              type="submit"
-              className="rounded-full border border-secondary px-5 py-2 text-sm font-medium text-secondary hover:bg-secondary/10"
-            >
-              Connect Google extras (calendar sync + Gmail import)
-            </button>
-          </form>
-        )}
-        {isOwner && hasExtras && (
-          <p className="mt-4 text-sm text-secondary">
-            Google extras connected — calendar sync and Gmail import are active.
-          </p>
+        {isOwner && (
+          <div className="mt-4">
+            <CalendarSync
+              variant="home"
+              initialStatus={extrasStatus}
+              reconnectAction={async () => {
+                "use server";
+                await signIn("google-extras", { redirectTo: "/" });
+              }}
+            />
+          </div>
         )}
 
         <div className="mt-8 grid gap-4 sm:grid-cols-2">

@@ -4,6 +4,7 @@ import { revalidatePath } from "next/cache";
 import sql from "@/lib/db";
 import {
   FAMILY_CALENDAR_ID,
+  FORKCAST_EVENT_FIELDS,
   eventsUrl,
   getExtrasAccessToken,
   googleFetch,
@@ -40,6 +41,7 @@ export async function planMeal(
           description: siteUrl(`/recipes/${recipeId}`),
           start: { dateTime: `${date}T17:00:00`, timeZone },
           end: { dateTime: `${date}T18:00:00`, timeZone },
+          ...FORKCAST_EVENT_FIELDS,
         }),
       });
       calendarEventId = created.id;
@@ -78,6 +80,7 @@ export async function addQuickMeal(formData: FormData) {
           summary: `${isSide ? "Side" : "Meal"}: ${name}`,
           start: { dateTime: `${date}T17:00:00`, timeZone },
           end: { dateTime: `${date}T18:00:00`, timeZone },
+          ...FORKCAST_EVENT_FIELDS,
         }),
       });
       calendarEventId = created.id;
@@ -140,6 +143,7 @@ export async function toggleMealSide(entryId: number, formData: FormData) {
             ...(entry.recipeId ? { description: siteUrl(`/recipes/${entry.recipeId}`) } : {}),
             start: { dateTime: `${entry.date}T17:00:00`, timeZone },
             end: { dateTime: `${entry.date}T18:00:00`, timeZone },
+            ...FORKCAST_EVENT_FIELDS,
           }),
         });
         newCalendarEventId = created.id;
@@ -201,12 +205,19 @@ export async function deleteMealPlanEntry(
   recipeId: number | null,
 ) {
   const userId = await getUserId();
-  if (calendarEventId) {
+  // The id bound into the page at render time can be stale (a calendar sync
+  // may have re-linked this entry since), so prefer what's stored now.
+  const [current] = await sql`
+    SELECT calendar_event_id AS "calendarEventId" FROM meal_plan_entries
+    WHERE id = ${entryId} AND user_id = ${userId}
+  `;
+  const eventId = (current?.calendarEventId as string | null | undefined) ?? calendarEventId;
+  if (eventId) {
     const accessToken = await getExtrasAccessToken();
     if (accessToken) {
       try {
         await googleFetch(
-          `${eventsUrl(FAMILY_CALENDAR_ID)}/${calendarEventId}`,
+          `${eventsUrl(FAMILY_CALENDAR_ID)}/${eventId}`,
           accessToken,
           { method: "DELETE" },
         );

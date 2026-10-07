@@ -27,8 +27,29 @@ export function siteUrl(path: string) {
 // they've connected it).
 export async function getExtrasAccessToken(): Promise<string | null> {
   const session = await auth();
+  // extrasError means the refresh token died; any access token still sitting
+  // in an older session cookie is stale and every call with it would 401.
+  if (session?.extrasError) return null;
   return session?.extrasAccessToken ?? null;
 }
+
+export type ExtrasStatus = "connected" | "expired" | "not-connected";
+
+// "expired" is distinct from "not-connected" so the UI can say "reconnect"
+// instead of silently offering a first-time connect — or worse, claiming
+// everything is fine.
+export function extrasStatusOf(
+  session: { extrasAccessToken?: string; extrasError?: string } | null,
+): ExtrasStatus {
+  if (session?.extrasError) return "expired";
+  return session?.extrasAccessToken ? "connected" : "not-connected";
+}
+
+// Stamped on every calendar event ForkCast creates so a later sync can tell
+// them apart from the rest of the family calendar before touching anything.
+export const FORKCAST_EVENT_FIELDS = {
+  extendedProperties: { private: { forkcast: "1" } },
+};
 
 export async function googleFetch(
   url: string,
