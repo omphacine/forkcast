@@ -71,7 +71,10 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
     Google({
       // Primary sign-in, used by everyone. Basic scopes only — non-sensitive,
       // so Google requires no verification review, no user cap, no token expiry.
-      authorization: { params: { scope: "openid email profile" } },
+      // select_account: signing out of ForkCast doesn't sign out of Google, so
+      // without this Google silently re-picks the last account on a shared
+      // device and nobody else can sign in with their own.
+      authorization: { params: { scope: "openid email profile", prompt: "select_account" } },
     }),
     Google({
       // Owner-only bonus connection: family calendar sync + Gmail receipt import.
