@@ -11,14 +11,9 @@ import {
   type ScannedInventoryItem,
   type ScanReceiptResult,
 } from "./actions";
+import { autoGrow, autoGrowRef } from "../autoGrow";
 import { LocationSelect } from "./LocationSelect";
 
-// Grows a name textarea to fit its content so a long scanned item name is
-// fully visible instead of scrolling inside a fixed-height box.
-function autoGrow(el: HTMLTextAreaElement) {
-  el.style.height = "auto";
-  el.style.height = `${el.scrollHeight}px`;
-}
 
 export function ScanReceiptForm({
   hasGmailImport,
@@ -132,9 +127,7 @@ export function ScanReceiptForm({
                   <textarea
                     name={`name-${i}`}
                     defaultValue={item.name}
-                    ref={(el) => {
-                      if (el) autoGrow(el);
-                    }}
+                    ref={autoGrowRef}
                     onInput={(e) => autoGrow(e.currentTarget)}
                     rows={1}
                     className="min-w-0 flex-1 resize-none overflow-hidden rounded-md border border-foreground/10 bg-transparent px-2 py-1 text-base"

@@ -1,16 +1,7 @@
 "use client";
 
 import { useRef } from "react";
-
-// A single-line <input> can never wrap long text — it just clips at the box
-// edge, which is exactly what a long recipe title did on a phone screen.
-// A textarea wraps naturally; autoGrow keeps its height matched to content
-// so it still reads as a plain (if multi-line) title, not a text box. Same
-// technique already used for scanned item names in inventory/ScanReceiptForm.
-function autoGrow(el: HTMLTextAreaElement) {
-  el.style.height = "auto";
-  el.style.height = `${el.scrollHeight}px`;
-}
+import { autoGrow, autoGrowRef } from "../autoGrow";
 
 export function RecipeNameForm({
   action,
@@ -28,9 +19,7 @@ export function RecipeNameForm({
         required
         rows={1}
         defaultValue={defaultValue}
-        ref={(el) => {
-          if (el) autoGrow(el);
-        }}
+        ref={autoGrowRef}
         onInput={(e) => autoGrow(e.currentTarget)}
         onBlur={() => formRef.current?.requestSubmit()}
         onKeyDown={(e) => {

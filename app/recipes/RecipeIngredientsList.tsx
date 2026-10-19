@@ -13,6 +13,7 @@ import {
   reorderRecipeIngredients,
   updateRecipeIngredient,
 } from "./actions";
+import { autoGrow, autoGrowRef } from "../autoGrow";
 import type { Ingredient } from "./data";
 
 function GripHandle(props: ButtonHTMLAttributes<HTMLButtonElement>) {
@@ -153,9 +154,19 @@ export function RecipeIngredientsList({
               aria-label={ingredient.name}
               className="h-5 w-5 shrink-0"
             />
-            <input
-              type="text"
+            <textarea
+              rows={1}
               defaultValue={ingredient.name}
+              ref={autoGrowRef}
+              onInput={(e) => autoGrow(e.currentTarget)}
+              onKeyDown={(e) => {
+                // Names are single-line; Enter commits (via blur) instead of
+                // adding a line break.
+                if (e.key === "Enter") {
+                  e.preventDefault();
+                  e.currentTarget.blur();
+                }
+              }}
               onBlur={(e) => {
                 const name = e.target.value.trim();
                 if (!name || name === ingredient.name) return;
@@ -163,7 +174,7 @@ export function RecipeIngredientsList({
                 formData.set("name", name);
                 startTransition(() => updateRecipeIngredient(recipeId, ingredient.id, formData));
               }}
-              className="min-w-0 flex-1 rounded-md border border-transparent bg-transparent px-1 text-lg hover:border-foreground/10 focus:border-foreground/20 focus:outline-none"
+              className="min-w-0 flex-1 resize-none overflow-hidden rounded-md border border-transparent bg-transparent px-1 text-lg leading-snug hover:border-foreground/10 focus:border-foreground/20 focus:outline-none"
             />
           </div>
           <button
