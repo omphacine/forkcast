@@ -137,6 +137,24 @@ export default async function RecipePage({
           <SourceLink sourceName={recipe.sourceName} />
         </div>
 
+        <div>
+          <h2 className="font-heading text-2xl font-semibold">Ingredients</h2>
+          <form
+            action={addIngredientsToShoppingList.bind(null, recipe.name)}
+            className="mt-4 flex flex-col gap-3"
+          >
+            <RecipeIngredientsList recipeId={recipe.id} ingredients={recipe.ingredients} />
+            {recipe.ingredients.length > 0 && (
+              <button
+                type="submit"
+                className="self-start rounded-full bg-primary px-5 py-2 text-base font-medium text-white hover:opacity-90"
+              >
+                Add checked items to shopping list
+              </button>
+            )}
+          </form>
+        </div>
+
         {recipe.instructions && (
           <div>
             <h2 className="font-heading text-2xl font-semibold">Instructions</h2>
@@ -155,24 +173,6 @@ export default async function RecipePage({
           <p className="mt-1 text-sm text-foreground/50">
             Modifications, substitutions, or what to try next time. Saves when you click away.
           </p>
-        </div>
-
-        <div>
-          <h2 className="font-heading text-2xl font-semibold">Ingredients</h2>
-          <form
-            action={addIngredientsToShoppingList.bind(null, recipe.name)}
-            className="mt-4 flex flex-col gap-3"
-          >
-            <RecipeIngredientsList recipeId={recipe.id} ingredients={recipe.ingredients} />
-            {recipe.ingredients.length > 0 && (
-              <button
-                type="submit"
-                className="self-start rounded-full bg-primary px-5 py-2 text-base font-medium text-white hover:opacity-90"
-              >
-                Add checked items to shopping list
-              </button>
-            )}
-          </form>
         </div>
 
         <div>
@@ -300,6 +300,21 @@ export default async function RecipePage({
           </div>
         )}
 
+        <div>
+          <h2 className="font-heading text-2xl font-semibold">Ingredients</h2>
+          {sharedRecipe.ingredients.length === 0 ? (
+            <p className="mt-2 text-base text-foreground/60">No ingredients listed.</p>
+          ) : (
+            <ul className="mt-2 flex flex-col gap-1">
+              {sharedRecipe.ingredients.map((ingredient) => (
+                <li key={ingredient.id} className="text-lg text-foreground/80">
+                  {ingredient.name}
+                </li>
+              ))}
+            </ul>
+          )}
+        </div>
+
         {sharedRecipe.instructions && (
           <div>
             <h2 className="font-heading text-2xl font-semibold">Instructions</h2>
@@ -317,21 +332,6 @@ export default async function RecipePage({
             </p>
           </div>
         )}
-
-        <div>
-          <h2 className="font-heading text-2xl font-semibold">Ingredients</h2>
-          {sharedRecipe.ingredients.length === 0 ? (
-            <p className="mt-2 text-base text-foreground/60">No ingredients listed.</p>
-          ) : (
-            <ul className="mt-2 flex flex-col gap-1">
-              {sharedRecipe.ingredients.map((ingredient) => (
-                <li key={ingredient.id} className="text-lg text-foreground/80">
-                  {ingredient.name}
-                </li>
-              ))}
-            </ul>
-          )}
-        </div>
 
         {sharedRecipe.plannedDates.length > 0 && (
           <div>
@@ -404,6 +404,21 @@ export default async function RecipePage({
         </div>
       )}
 
+      <div>
+        <h2 className="font-heading text-2xl font-semibold">Ingredients</h2>
+        {publicRecipe.ingredients.length === 0 ? (
+          <p className="mt-2 text-base text-foreground/60">No ingredients listed.</p>
+        ) : (
+          <ul className="mt-2 flex flex-col gap-1">
+            {publicRecipe.ingredients.map((ingredient) => (
+              <li key={ingredient.id} className="text-lg text-foreground/80">
+                {ingredient.name}
+              </li>
+            ))}
+          </ul>
+        )}
+      </div>
+
       {publicRecipe.instructions && (
         <div>
           <h2 className="font-heading text-2xl font-semibold">Instructions</h2>
@@ -421,21 +436,6 @@ export default async function RecipePage({
           </p>
         </div>
       )}
-
-      <div>
-        <h2 className="font-heading text-2xl font-semibold">Ingredients</h2>
-        {publicRecipe.ingredients.length === 0 ? (
-          <p className="mt-2 text-base text-foreground/60">No ingredients listed.</p>
-        ) : (
-          <ul className="mt-2 flex flex-col gap-1">
-            {publicRecipe.ingredients.map((ingredient) => (
-              <li key={ingredient.id} className="text-lg text-foreground/80">
-                {ingredient.name}
-              </li>
-            ))}
-          </ul>
-        )}
-      </div>
 
       <p className="text-base text-foreground/60">
         <Link href="/recipes" className="text-secondary underline">
