@@ -138,6 +138,17 @@ export default async function RecipePage({
         </div>
 
         <div>
+          <h2 className="font-heading text-2xl font-semibold">Notes</h2>
+          <RecipeNotesForm
+            action={updateRecipeNotes.bind(null, recipe.id)}
+            defaultValue={recipe.notes}
+          />
+          <p className="mt-1 text-sm text-foreground/50">
+            Modifications, substitutions, or what to try next time. Saves when you click away.
+          </p>
+        </div>
+
+        <div>
           <h2 className="font-heading text-2xl font-semibold">Ingredients</h2>
           <form
             action={addIngredientsToShoppingList.bind(null, recipe.name)}
@@ -163,17 +174,6 @@ export default async function RecipePage({
             </p>
           </div>
         )}
-
-        <div>
-          <h2 className="font-heading text-2xl font-semibold">Notes</h2>
-          <RecipeNotesForm
-            action={updateRecipeNotes.bind(null, recipe.id)}
-            defaultValue={recipe.notes}
-          />
-          <p className="mt-1 text-sm text-foreground/50">
-            Modifications, substitutions, or what to try next time. Saves when you click away.
-          </p>
-        </div>
 
         <div>
           <h2 className="font-heading text-2xl font-semibold">Plan this meal</h2>
@@ -300,6 +300,15 @@ export default async function RecipePage({
           </div>
         )}
 
+        {sharedRecipe.notes && (
+          <div>
+            <h2 className="font-heading text-2xl font-semibold">Notes</h2>
+            <p className="mt-2 whitespace-pre-wrap text-lg text-foreground/80">
+              {sharedRecipe.notes}
+            </p>
+          </div>
+        )}
+
         <div>
           <h2 className="font-heading text-2xl font-semibold">Ingredients</h2>
           {sharedRecipe.ingredients.length === 0 ? (
@@ -320,15 +329,6 @@ export default async function RecipePage({
             <h2 className="font-heading text-2xl font-semibold">Instructions</h2>
             <p className="mt-2 whitespace-pre-wrap text-lg text-foreground/80">
               {sharedRecipe.instructions}
-            </p>
-          </div>
-        )}
-
-        {sharedRecipe.notes && (
-          <div>
-            <h2 className="font-heading text-2xl font-semibold">Notes</h2>
-            <p className="mt-2 whitespace-pre-wrap text-lg text-foreground/80">
-              {sharedRecipe.notes}
             </p>
           </div>
         )}
@@ -404,6 +404,15 @@ export default async function RecipePage({
         </div>
       )}
 
+      {publicRecipe.notes && (
+        <div>
+          <h2 className="font-heading text-2xl font-semibold">Notes</h2>
+          <p className="mt-2 whitespace-pre-wrap text-lg text-foreground/80">
+            {publicRecipe.notes}
+          </p>
+        </div>
+      )}
+
       <div>
         <h2 className="font-heading text-2xl font-semibold">Ingredients</h2>
         {publicRecipe.ingredients.length === 0 ? (
@@ -424,15 +433,6 @@ export default async function RecipePage({
           <h2 className="font-heading text-2xl font-semibold">Instructions</h2>
           <p className="mt-2 whitespace-pre-wrap text-lg text-foreground/80">
             {publicRecipe.instructions}
-          </p>
-        </div>
-      )}
-
-      {publicRecipe.notes && (
-        <div>
-          <h2 className="font-heading text-2xl font-semibold">Notes</h2>
-          <p className="mt-2 whitespace-pre-wrap text-lg text-foreground/80">
-            {publicRecipe.notes}
           </p>
         </div>
       )}
