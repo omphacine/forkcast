@@ -41,15 +41,15 @@ export function ScanPhotoPanel() {
           ref={fileInputRef}
           type="file"
           accept="image/*"
-          capture="environment"
           onChange={handleFileChange}
           disabled={isScanning}
           className="hidden"
         />
       </label>
       <p className="text-sm text-foreground/50">
-        Takes a photo of a recipe card, cookbook page, or handwritten note and fills in the
-        fields below for you to check.
+        Take a photo of a recipe card, cookbook page, or handwritten note &mdash; or pick one
+        already in your photo library &mdash; and ForkCast fills in the fields below for you
+        to check.
       </p>
       {error && <p className="text-base text-red-600 dark:text-red-400">{error}</p>}
     </div>
