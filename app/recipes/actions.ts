@@ -7,6 +7,7 @@ import strideSql from "@/lib/strideDb";
 import claude from "@/lib/claude";
 import { FAMILY_CALENDAR_ID, eventsUrl, getExtrasAccessToken, googleFetch } from "@/lib/google";
 import { getSharedAccess, getUserId, isOwner } from "@/lib/user";
+import { MAX_SCAN_PHOTOS } from "./add/scanLimits";
 import { getRecipe } from "./data";
 import { isMealType } from "./mealTypes";
 
@@ -46,7 +47,9 @@ async function extractRecipeFromContent(
   try {
     response = await claude.messages.create({
       model: "claude-opus-5",
-      max_tokens: 2048,
+      // Several pages of a long recipe can run past the old 2048 cap and
+      // truncate the JSON mid-string.
+      max_tokens: 4096,
       messages: [{ role: "user", content }],
       output_config: { format: { type: "json_schema", schema: RECIPE_SCHEMA } },
     });
@@ -85,32 +88,61 @@ async function extractRecipeFromContent(
   };
 }
 
+// The model rejects any single image over 5 MB.
+const MAX_SCAN_PHOTO_BYTES = 5 * 1024 * 1024;
+
+const SINGLE_PHOTO_PROMPT =
+  "This is a photo of a recipe — a recipe card, cookbook page, or handwritten note. Read it and extract the recipe name, the full list of ingredients (one per item, keeping quantities as written), and the cooking instructions if visible. If no name is written, invent a short descriptive one. If no instructions are visible, return null for instructions.";
+
+function multiPhotoPrompt(count: number) {
+  return `These ${count} photos, in order, are different parts of the SAME recipe — for example the front and back of a recipe card, or consecutive cookbook pages. Read all of them together and extract ONE recipe: the recipe name, the full combined list of ingredients (one per item, keeping quantities as written, without repeating an ingredient that appears in more than one photo), and the cooking instructions in order if visible. If no name is written, invent a short descriptive one. If no instructions are visible, return null for instructions.`;
+}
+
+// Accepts one or more photos ("photo" entries, in order) of a single recipe.
 export async function scanRecipeImage(formData: FormData): Promise<ScanRecipeResult> {
-  const file = formData.get("photo");
-  if (!(file instanceof File) || file.size === 0) {
+  const files = formData
+    .getAll("photo")
+    .filter((entry): entry is File => entry instanceof File && entry.size > 0);
+  if (files.length === 0) {
     return { ok: false, reason: "Choose a photo first." };
   }
-  if (!SCANNABLE_IMAGE_TYPES.has(file.type)) {
-    return {
-      ok: false,
-      reason: `That file type (${file.type || "unknown"}) isn't supported — use a JPEG or PNG photo.`,
-    };
+  if (files.length > MAX_SCAN_PHOTOS) {
+    return { ok: false, reason: `Use up to ${MAX_SCAN_PHOTOS} photos per recipe.` };
+  }
+  for (const file of files) {
+    if (!SCANNABLE_IMAGE_TYPES.has(file.type)) {
+      return {
+        ok: false,
+        reason: `That file type (${file.type || "unknown"}) isn't supported — use a JPEG or PNG photo.`,
+      };
+    }
+    if (file.size > MAX_SCAN_PHOTO_BYTES) {
+      return { ok: false, reason: "One of those photos is too large to read — try a smaller one." };
+    }
   }
 
-  const base64 = Buffer.from(await file.arrayBuffer()).toString("base64");
+  const images = await Promise.all(
+    files.map(async (file) => ({
+      type: "image" as const,
+      source: {
+        type: "base64" as const,
+        media_type: file.type as ScannableImageType,
+        data: Buffer.from(await file.arrayBuffer()).toString("base64"),
+      },
+    })),
+  );
 
   return extractRecipeFromContent(
     [
-      {
-        type: "image",
-        source: { type: "base64", media_type: file.type as ScannableImageType, data: base64 },
-      },
+      ...images,
       {
         type: "text",
-        text: "This is a photo of a recipe — a recipe card, cookbook page, or handwritten note. Read it and extract the recipe name, the full list of ingredients (one per item, keeping quantities as written), and the cooking instructions if visible. If no name is written, invent a short descriptive one. If no instructions are visible, return null for instructions.",
+        text: files.length === 1 ? SINGLE_PHOTO_PROMPT : multiPhotoPrompt(files.length),
       },
     ],
-    "Couldn't find a recipe in that photo — try a clearer picture.",
+    files.length === 1
+      ? "Couldn't find a recipe in that photo — try a clearer picture."
+      : "Couldn't find a recipe in those photos — try clearer pictures.",
   );
 }
 
